@@ -37,16 +37,28 @@ I'm a hydrologist and interdisciplinary researcher currently pursuing a Ph.D. at
 
 ## 💻 Tech Stack
 
+## 💻 Tech Stack (in Java syntax)
+
 public class XinLan {
-    String[] code = {"Python", "R", "Java", "C", "C++", "JavaScript", "Linux"};
-    String[] tools = {"Google Earth Engine", "GIS", "Docker", "Azure"};
+
+    String[] code = {
+        "Python", "R", "Java", "C", "C++", "JavaScript", "Linux"
+    };
+
+    String[] tools = {
+        "Google Earth Engine", "GIS", "Docker", "Azure"
+    };
+
     String[] research = {
         "hydrological modeling",
         "remote sensing",
         "machine learning"
     };
+
     String focus = "process-guided ML, explainable ML, water systems modeling";
 }
+
+
 
 
 
