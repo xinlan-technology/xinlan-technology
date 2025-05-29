@@ -1,10 +1,8 @@
 ### Hi there 👋 I'm Xin (Shane) Lan
 
-I'm a hydrologist and interdisciplinary researcher applying data-driven approaches to tackle water scarcity. My work integrates hydrological modeling, remote sensing, and machine learning to support sustainable water management.
+## About Me
 
-I hold M.S. degrees in Earth & Environmental Engineering from Columbia University and in Computer & Information Technology from the University of Pennsylvania.
-
-Currently, I’m pursuing a Ph.D. at Michigan State University in Geography, Environment, and Spatial Sciences, focusing on water resources and policy-relevant research.
+I'm a hydrologist and interdisciplinary researcher currently pursuing a Ph.D. at [Michigan State University](https://msu.edu) in [Geography, Environment, and Spatial Sciences](https://geo.msu.edu), where I focus on water resources and policy-relevant research. Drawing on M.S. degrees in [Earth & Environmental Engineering](https://eee.columbia.edu) from [Columbia University](https://www.columbia.edu) and in [Computer & Information Technology](https://online.seas.upenn.edu/) from the [University of Pennsylvania](https://www.upenn.edu), I apply data-driven approaches that integrate hydrological modeling, remote sensing, and machine learning to tackle water scarcity through both physical and computational perspectives.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/output/github-snake-dark.svg">
