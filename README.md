@@ -1,6 +1,6 @@
 ### Hi there 👋 I'm Xin (Shane) Lan
 
-<p align="center">
+<p align="right">
   <a href="https://github.com/xinlan-technology?tab=followers">
     <img src="https://img.shields.io/github/followers/xinlan-technology?style=social" alt="GitHub Badge" />
   </a>
@@ -10,17 +10,11 @@
   <a href="https://scholar.google.com/citations?user=https://scholar.google.com/citations?hl=en&user=hDHQtHAAAAAJ&view_op=list_works&sortby=pubdate">
     <img src="https://img.shields.io/badge/Google-Scholar-lightgrey" alt="Google Scholar Badge" />
   </a>
-  <a href="https://www.researchgate.net/profile/your-profile">
+  <a href="https://www.researchgate.net/profile/Xin-Lan-20">
     <img src="https://img.shields.io/badge/ResearchGate-my?logoColor=00CCBB&color=00CCBB" alt="ResearchGate" />
   </a>
-  <a href="https://www.youtube.com/@yourchannel">
-    <img src="https://img.shields.io/badge/My-YouTube-red" alt="YouTube Badge" />
-  </a>
-  <a href="https://www.linkedin.com/in/yourprofile/">
+  <a href="https://www.linkedin.com/in/xin-lan-585912184/">
     <img src="https://img.shields.io/badge/My-LinkedIn-blue" alt="LinkedIn Badge" />
-  </a>
-  <a href="https://your-cv-link">
-    <img src="https://img.shields.io/badge/My-CV-critical" alt="CV Badge" />
   </a>
   <img src="https://visitor-badge.laobi.icu/badge?page_id=xinlan-technology.xinlan-technology" alt="Visitor Badge" />
 </p>
