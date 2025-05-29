@@ -15,27 +15,27 @@ I'm a hydrologist and interdisciplinary researcher currently pursuing a Ph.D. at
 <div align="center">
 <table>
 <tr>
-<td width="50%">
+<td width="60%">
 
 <img src="https://github-readme-stats-sigma-five.vercel.app/api?username=xinlan-technology&show_icons=true" />
 
 </td>
-<td width="50%">
+<td width="40%">
 
 ```javascript
-const thai = {
+const xinlan = {
   pronouns: "she" | "her",
-  code: [Javascript, Typescript, HTML, CSS, Ruby, Python, Java],
-  tools: [React, Redux, Node, Storybook, Styled-Components, Jest, Docker],
-  architecture: ["microservices", "event-driven", "design system pattern"],
-  techCommunities: {
-                        coorganizer: "AfroPython",
-                        speaker: "Latinity",
-                        mentor: "EducaTRANSforma"
-                      },
- challenge: "I am doing the #100DaysOfCode challenge focused on react and typescript"
+  code: [R, Python, Java, C, "C++", Linux, JavaScript],
+  tools: ["Google Earth Engine", GIS, Docker, Azure],
+  research: ["hydrological modeling", "remote sensing", "machine learning"],
+  focus: "process-guided machine learning, explainable machine learning"
 }
 ```
+
+</td>
+</tr>
+</table>
+</div>
 
 </td>
 </tr>
