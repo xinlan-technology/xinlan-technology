@@ -10,6 +10,11 @@
 ## 📊 GitHub Stats
 
 <p align="center">
-  <img width="48%" src="https://github-readme-stats-sigma-five.vercel.app/api?username=xinlan-technology&show_icons=true" />
-  <img width="48%" src="https://github-readme-stats-sigma-five.vercel.app/api/top-langs/?username=xinlan-technology&langs_count=3&hide=javascript,go,html,css,tex" />
+  <img src="https://github-readme-stats-sigma-five.vercel.app/api?username=xinlan-technology&show_icons=true" />
+</p>
+
+## ⏰ Coding Time
+
+<p align="center">
+  <img src="https://github-readme-stats.vercel.app/api/wakatime?username=xinlan-technology" />
 </p>
