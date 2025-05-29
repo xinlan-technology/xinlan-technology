@@ -5,9 +5,9 @@
     <img src="https://img.shields.io/github/followers/xinlan-technology?style=social" alt="GitHub Badge" />
   </a>
   <a href="https://twitter.com/ShaneResearch">
-    <img src="https://img.shields.io/twitter/follow/yourtwitter?style=social" alt="Twitter Badge" />
+    <img src="https://img.shields.io/twitter/follow/ShaneResearch?style=social" alt="Twitter Badge" />
   </a>
-  <a href="https://scholar.google.com/citations?user=yourID&hl=en">
+  <a href="https://scholar.google.com/citations?user=https://scholar.google.com/citations?hl=en&user=hDHQtHAAAAAJ&view_op=list_works&sortby=pubdate">
     <img src="https://img.shields.io/badge/Google-Scholar-lightgrey" alt="Google Scholar Badge" />
   </a>
   <a href="https://www.researchgate.net/profile/your-profile">
