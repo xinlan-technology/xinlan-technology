@@ -24,7 +24,6 @@ I'm a hydrologist and interdisciplinary researcher currently pursuing a Ph.D. at
 
 ```javascript
 const xinlan = {
-  pronouns: "she" | "her",
   code: [R, Python, Java, C, "C++", Linux, JavaScript],
   tools: ["Google Earth Engine", GIS, Docker, Azure],
   research: ["hydrological modeling", "remote sensing", "machine learning"],
