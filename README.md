@@ -1,4 +1,6 @@
-## Hi there 👋
+### Hi there 👋 I'm Xin (Shane) Lan
+Welcome to my GitHub page!
+
 
 <!--
 **xinlan-technology/xinlan-technology** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
