@@ -1,5 +1,30 @@
 ### Hi there 👋 I'm Xin (Shane) Lan
 
+<p align="center">
+  <a href="https://github.com/xinlan-technology?tab=followers">
+    <img src="https://img.shields.io/github/followers/xinlan-technology?style=social" alt="GitHub Badge" />
+  </a>
+  <a href="https://twitter.com/ShaneResearch">
+    <img src="https://img.shields.io/twitter/follow/yourtwitter?style=social" alt="Twitter Badge" />
+  </a>
+  <a href="https://scholar.google.com/citations?user=yourID&hl=en">
+    <img src="https://img.shields.io/badge/Google-Scholar-lightgrey" alt="Google Scholar Badge" />
+  </a>
+  <a href="https://www.researchgate.net/profile/your-profile">
+    <img src="https://img.shields.io/badge/ResearchGate-my?logoColor=00CCBB&color=00CCBB" alt="ResearchGate" />
+  </a>
+  <a href="https://www.youtube.com/@yourchannel">
+    <img src="https://img.shields.io/badge/My-YouTube-red" alt="YouTube Badge" />
+  </a>
+  <a href="https://www.linkedin.com/in/yourprofile/">
+    <img src="https://img.shields.io/badge/My-LinkedIn-blue" alt="LinkedIn Badge" />
+  </a>
+  <a href="https://your-cv-link">
+    <img src="https://img.shields.io/badge/My-CV-critical" alt="CV Badge" />
+  </a>
+  <img src="https://visitor-badge.laobi.icu/badge?page_id=xinlan-technology.xinlan-technology" alt="Visitor Badge" />
+</p>
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/output/github-snake-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/output/github-snake.svg">
