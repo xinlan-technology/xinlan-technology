@@ -7,10 +7,6 @@ Welcome to my GitHub page!
   <img alt="github contribution grid snake animation" src="https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/output/github-snake.svg">
 </picture>
 
-![Snake animation](https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/output/github-snake.svg)
-
-
-
 
 <!--
 **xinlan-technology/xinlan-technology** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
