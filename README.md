@@ -73,7 +73,6 @@ public class XinLan {
 
 
 ## 📊 GitHub Stats
-
 <div align="center">
 <table>
 <tr>
@@ -81,7 +80,7 @@ public class XinLan {
 <img src="https://github-readme-stats-sigma-five.vercel.app/api?username=xinlan-technology&show_icons=true" />
 </td>
 <td width="50%" align="center">
-<img src="https://github-readme-stats-sigma-five.vercel.app/api/top-langs/?username=xinlan-technology&layout=compact" />
+<img src="https://github-readme-activity-graph.vercel.app/graph?username=xinlan-technology&theme=github-compact" />
 </td>
 </tr>
 </table>
