@@ -3,9 +3,9 @@ Welcome to my GitHub page!
 
 <!-- GitHub Contribution Snake -->
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/yourusername/yourusername/blob/output/github-contribution-grid-snake-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="https://github.com/yourusername/yourusername/blob/output/github-contribution-grid-snake.svg" />
-  <img alt="github-snake" src="https://github.com/yourusername/yourusername/blob/output/github-contribution-grid-snake.svg" />
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/xinlan-technology/xinlan-technology/blob/output/github-contribution-grid-snake-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/xinlan-technology/xinlan-technology/blob/output/github-contribution-grid-snake.svg" />
+  <img alt="github-snake" src="https://github.com/yourusername/xinlan-technology/blob/output/github-contribution-grid-snake.svg" />
 </picture>
 
 
