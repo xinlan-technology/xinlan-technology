@@ -1,5 +1,4 @@
 ### Hi there 👋 I'm Xin (Shane) Lan
-Welcome to my GitHub page!
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/output/github-snake-dark.svg">
