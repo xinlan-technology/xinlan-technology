@@ -14,8 +14,8 @@ I'm a hydrologist and interdisciplinary researcher currently pursuing a Ph.D. at
 
 ```javascript
 const xinlan = {
-  code: [R, Python, Java, C, C++, Linux, JavaScript],
-  tools: ["Google Earth Engine", GIS, Docker, Azure],
+  code: ["R", "Python", "Java", "C", "C++", "Linux", "JavaScript"],
+  tools: ["Google Earth Engine", "GIS", "Docker", "Azure"],
   research: ["hydrological modeling", "remote sensing", "machine learning"],
   focus: "process-guided machine learning, explainable machine learning"
 }
