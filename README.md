@@ -16,6 +16,9 @@
   <a href="https://www.linkedin.com/in/xin-lan-585912184/">
     <img src="https://img.shields.io/badge/LinkedIn-Profile-blue?logo=linkedin" alt="LinkedIn Badge" />
   </a>
+  <a href="https://joss.theoj.org/papers/reviewed_by/@xinlan-technology">
+    <img src="https://joss.theoj.org/badges/reviewed_by/@xinlan-technology" alt="JOSS Reviewer Badge" />
+  </a>
   <img src="https://visitor-badge.laobi.icu/badge?page_id=xinlan-technology.xinlan-technology" alt="Visitor Badge" />
 </p>
 
