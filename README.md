@@ -30,13 +30,13 @@
   <img alt="GitHub Contribution Snake Animation" src="https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/output/github-snake.svg">
 </picture>
 
----
+<hr>
 
 ## 🧭 About Me
 
 I'm a hydrologist and interdisciplinary researcher currently pursuing a Ph.D. in the [Department of Geography, Environment, and Spatial Sciences](https://geo.msu.edu) at [Michigan State University](https://www.msu.edu), where I focus on water resources and policy-relevant research. Drawing on M.S. degrees in [Earth and Environmental Engineering](https://eee.columbia.edu) from [Columbia University](https://www.columbia.edu) and in [Computer and Information Technology](https://online.seas.upenn.edu/) from the [University of Pennsylvania](https://www.upenn.edu), I apply data-driven approaches that integrate hydrological modeling, remote sensing, and machine learning to address water resource problems through both physical and computational perspectives.
 
----
+<hr>
 
 ## 💻 Tech Stack
 
