@@ -22,7 +22,7 @@
   <img src="https://visitor-badge.laobi.icu/badge?page_id=xinlan-technology.xinlan-technology" alt="Visitor Badge" />
 </p>
 
----
+<hr>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/output/github-snake-dark.svg">
