@@ -1,6 +1,9 @@
 ### Hi there 👋 I'm Xin (Shane) Lan
 
 <p align="left">
+  <a href="https://xinlan-science.github.io/">
+    <img src="https://img.shields.io/badge/Website-xinlan--science-blue?logo=google-chrome&logoColor=white" alt="Website Badge" />
+  </a>
   <a href="https://twitter.com/ShaneResearch">
     <img src="https://img.shields.io/twitter/follow/ShaneResearch?style=social" alt="Twitter Badge" />
   </a>
