@@ -80,7 +80,7 @@ public class XinLan {
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="https://github-readme-stats.vercel.app/api?username=xinlan-technology&show_icons=true" />
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=xinlan-technology&theme=github" />
 </td>
 <td width="50%" align="center">
 <img src="https://github-readme-activity-graph.vercel.app/graph?username=xinlan-technology&theme=github-compact" />
