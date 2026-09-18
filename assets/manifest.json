@@ -48,12 +48,6 @@
   "display_frac": 1.0
  },
  {
-  "file": "sec-activity-light.svg",
-  "viewbox_w": 816,
-  "min_font": 17,
-  "display_frac": 1.0
- },
- {
   "file": "btn-website-light.svg",
   "viewbox_w": 105,
   "min_font": 15,
@@ -138,12 +132,6 @@
   "display_frac": 1.0
  },
  {
-  "file": "activity-light.svg",
-  "viewbox_w": 816,
-  "min_font": 15,
-  "display_frac": 1.0
- },
- {
   "file": "footer-light.svg",
   "viewbox_w": 816,
   "min_font": 15,
@@ -193,12 +181,6 @@
  },
  {
   "file": "sec-tools-dark.svg",
-  "viewbox_w": 816,
-  "min_font": 17,
-  "display_frac": 1.0
- },
- {
-  "file": "sec-activity-dark.svg",
   "viewbox_w": 816,
   "min_font": 17,
   "display_frac": 1.0
@@ -283,12 +265,6 @@
  },
  {
   "file": "tools-dark.svg",
-  "viewbox_w": 816,
-  "min_font": 15,
-  "display_frac": 1.0
- },
- {
-  "file": "activity-dark.svg",
   "viewbox_w": 816,
   "min_font": 15,
   "display_frac": 1.0

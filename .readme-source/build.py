@@ -20,7 +20,6 @@ scale bar stay dry and clear of the map furniture, the four featured cards are s
 from __future__ import annotations
 
 import html
-import datetime
 import json
 import math
 import pathlib
@@ -1034,7 +1033,6 @@ SECTIONS = [
     ("sec-code", "03", "Selected research code", "Huron"),
     ("sec-education", "04", "Education", "Erie"),
     ("sec-tools", "05", "Methods & Tools", "Ontario"),
-    ("sec-activity", "06", "Code activity", None),
 ]
 SEC_SIZE, SEC_NUM = 42, 17
 GLYPH_SLOT = 48
@@ -1797,94 +1795,7 @@ def build_tools(T, theme):
     return c.write(theme)
 
 
-# ----------------------------------------------------------------------------- code activity (contribution heatmap)
-# Snapshot of the GitHub contribution calendar, stored in activity.json; refresh it with
-# refresh_activity.py, which scrapes https://github.com/users/<login>/contributions -- the same calendar
-# the profile page draws (the GraphQL viewer query returns a different, lower total). Static until rebuilt.
-ACTIVITY = json.loads((HERE / "activity.json").read_text())
-HEAT_STEPS = (2, 4, 8)          # 0 | 1-2 | 3-4 | 5-8 | 9+
-
-
-def heat_level(v):
-    if v <= 0:
-        return 0
-    return 1 + sum(1 for t in HEAT_STEPS if v > t)
-
-
-def fmt_day(iso):
-    d = datetime.date.fromisoformat(iso)
-    return f"{d.day} {d.strftime('%b')} {d.year}"
-
-
-def activity_stats():
-    """(total contributions, days with any activity, busiest day)."""
-    flat = [v for week in ACTIVITY["weeks"] for v in week]
-    return ACTIVITY["total"], sum(1 for v in flat if v > 0), max(flat)
-
-
-def activity_alt():
-    total, active, top = activity_stats()
-    return (f"GitHub contribution heatmap (snapshot): {total} contributions between {fmt_day(ACTIVITY['start'])} and "
-            f"{fmt_day(ACTIVITY['end'])}, active on {active} days, busiest day {top} contributions.")
-
-
-def build_activity(T, theme):
-    """A 53x7 contribution heatmap in the cartographic palette, laid out like the other panels."""
-    W = PANEL_W
-    weeks = ACTIVITY["weeks"]
-    total, active, top = activity_stats()
-    GAP, LAB = 2.6, 46                       # cell gap; width reserved for the weekday labels
-    gx0 = PANEL_L + LAB
-    pitch = (PANEL_R - gx0 + GAP) / len(weeks)
-    cell = pitch - GAP
-    gy0 = 96
-    H = int(gy0 + 7 * pitch - GAP + 44)
-    c = Canvas("activity", W, H, "Code activity", activity_alt(), T, 1.0)
-    panel_bg(c, T)
-    inner = panel_inner(H)
-    c.runs([(f"{total}", MONO_M, T["ink"]), (" contributions", SANS_M, T["text"])],
-           PANEL_L, 42, 17, within=inner, key="total")
-    # legend, right-aligned on the same baseline
-    lw = 5 * (cell + 4)
-    lx = PANEL_R - lw - measure("More", SANS, 15) - 8
-    c.text("Less", SANS, 15, lx - 8, 42, T["muted"], anchor="end", within=inner, key="less")
-    for i in range(5):
-        x = lx + i * (cell + 4)
-        c.add(f'<rect x="{num(x)}" y="{num(42 - cell + 1)}" width="{num(cell)}" height="{num(cell)}" rx="2.4" '
-              f'fill="{T["heat"][i]}" stroke="{T["heat_edge"]}" stroke-width="0.8"/>')
-    c.reserve("legend", (lx, 42 - cell + 1, lx + lw, 43), within=inner, gap=6)
-    c.text("More", SANS, 15, PANEL_R, 42, T["muted"], anchor="end", within=inner, key="more")
-    # month labels: the first week of each month, provided there is room since the last label
-    start = datetime.date.fromisoformat(ACTIVITY["start"])
-    last_x, seen = -1e9, set()
-    for wi in range(len(weeks)):
-        d = start + datetime.timedelta(days=7 * wi)
-        key = (d.year, d.month)
-        x = gx0 + wi * pitch
-        if key not in seen and d.day <= 7 and x - last_x > 52:
-            seen.add(key)
-            lx = min(x, PANEL_R - measure(d.strftime("%b"), SANS, 15))   # clamp the last label inside
-            c.text(d.strftime("%b"), SANS, 15, lx, gy0 - 12, T["muted"], within=inner, key=f"m{wi}", gap=6)
-            last_x = x
-    for row, label in ((1, "Mon"), (3, "Wed"), (5, "Fri")):
-        y = gy0 + row * pitch + cell / 2 + cap_h(SANS, 15) / 2
-        c.text(label, SANS, 15, gx0 - 12, y, T["muted"], anchor="end", within=inner, key=label, gap=4)
-    # the grid itself (decorative marks, reserved as one block)
-    by_level = {}
-    for wi, week in enumerate(weeks):
-        for di, v in enumerate(week):
-            x, y = gx0 + wi * pitch, gy0 + di * pitch
-            by_level.setdefault(heat_level(v), []).append(
-                f'<rect x="{num(x)}" y="{num(y)}" width="{num(cell)}" height="{num(cell)}" rx="2.4"/>')
-    for lvl in sorted(by_level):
-        c.add(f'<g fill="{T["heat"][lvl]}" stroke="{T["heat_edge"]}" stroke-width="0.8">{"".join(by_level[lvl])}</g>')
-    grid = (gx0, gy0, PANEL_R, gy0 + 7 * pitch - GAP)
-    c.reserve("grid", grid, within=inner, gap=6)
-    c.text(f"Snapshot \u00b7 {fmt_day(ACTIVITY['start'])} \u2013 {fmt_day(ACTIVITY['end'])} \u00b7 active on "
-           f"{active} days \u00b7 busiest day {top}", SANS, 15, PANEL_L, H - 16, T["muted"], within=inner, key="caption")
-    return c.write(theme)
-
-
+# ----------------------------------------------------------------------------- footer
 def build_footer(T, theme):
     W, H = PANEL_W, 80
     c = Canvas("footer", W, H, "East Lansing, MI (42.73 N, 84.48 W) and Ann Arbor, MI (42.28 N, 83.74 W)",
@@ -2012,10 +1923,6 @@ Hydrologist and interdisciplinary researcher working at the intersection of **wa
 
 {pic("tools", "Methods and tools - " + tools_alt(), "100%")}
 
-{S("sec-activity")}
-
-{pic("activity", activity_alt(), "100%")}
-
 {pic("footer", "East Lansing, MI (42.73 N, 84.48 W) and Ann Arbor, MI (42.28 N, 83.74 W)", "100%")}
 
 """
@@ -2040,7 +1947,7 @@ def page_report():
     hero_edge = 9.6 * DESKTOP_W / HERO_W
     return dict(card_edge=round(card_edge, 2), panel_edge=round(panel_edge, 2), hero_edge=round(hero_edge, 2),
                 hero_h=round(h("hero")), focus_h=round(h("focus")), education_h=round(h("education")),
-                tools_h=round(h("tools")), activity_h=round(h("activity")))
+                tools_h=round(h("tools")))
 
 
 # ----------------------------------------------------------------------------- main
@@ -2064,7 +1971,6 @@ def main():
             build_repo_featured(r, T, theme)
         build_education(T, theme)
         build_tools(T, theme)
-        build_activity(T, theme)
         build_footer(T, theme)
     row_w = [sum(BTN_W[n] for n, *_ in row) + SPACE_PX * (len(row) - 1) for row in BTN_ROWS]
     assert max(row_w) <= BTN_ROW_MAX, f"a link-button row needs {max(row_w):.0f}px (> {BTN_ROW_MAX})"
