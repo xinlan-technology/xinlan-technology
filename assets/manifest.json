@@ -1,0 +1,302 @@
+[
+ {
+  "file": "hero-light.svg",
+  "viewbox_w": 1200,
+  "min_font": 21.5,
+  "display_frac": 1.0
+ },
+ {
+  "file": "appt-csis-light.svg",
+  "viewbox_w": 400,
+  "min_font": 15,
+  "display_frac": 0.49
+ },
+ {
+  "file": "appt-ciglr-light.svg",
+  "viewbox_w": 400,
+  "min_font": 15,
+  "display_frac": 0.49
+ },
+ {
+  "file": "sec-appointments-light.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-research-light.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-code-light.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-education-light.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-tools-light.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-activity-light.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "btn-website-light.svg",
+  "viewbox_w": 105,
+  "min_font": 15,
+  "display_frac": 0.1241
+ },
+ {
+  "file": "btn-scholar-light.svg",
+  "viewbox_w": 156,
+  "min_font": 15,
+  "display_frac": 0.1844
+ },
+ {
+  "file": "btn-orcid-light.svg",
+  "viewbox_w": 94,
+  "min_font": 15,
+  "display_frac": 0.1111
+ },
+ {
+  "file": "btn-researchgate-light.svg",
+  "viewbox_w": 147,
+  "min_font": 15,
+  "display_frac": 0.1738
+ },
+ {
+  "file": "btn-joss-light.svg",
+  "viewbox_w": 156,
+  "min_font": 15,
+  "display_frac": 0.1844
+ },
+ {
+  "file": "btn-linkedin-light.svg",
+  "viewbox_w": 107,
+  "min_font": 15,
+  "display_frac": 0.1265
+ },
+ {
+  "file": "btn-x-light.svg",
+  "viewbox_w": 173,
+  "min_font": 15,
+  "display_frac": 0.2045
+ },
+ {
+  "file": "focus-light.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "repo-process-guided-deep-learning-light.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "repo-static-dynamic-lake-model-light.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "repo-hurricane-wind-radius-analysis-light.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "repo-water-system-consolidation-light.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "education-light.svg",
+  "viewbox_w": 816,
+  "min_font": 16,
+  "display_frac": 1.0
+ },
+ {
+  "file": "tools-light.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "activity-light.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "footer-light.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "hero-dark.svg",
+  "viewbox_w": 1200,
+  "min_font": 21.5,
+  "display_frac": 1.0
+ },
+ {
+  "file": "appt-csis-dark.svg",
+  "viewbox_w": 400,
+  "min_font": 15,
+  "display_frac": 0.49
+ },
+ {
+  "file": "appt-ciglr-dark.svg",
+  "viewbox_w": 400,
+  "min_font": 15,
+  "display_frac": 0.49
+ },
+ {
+  "file": "sec-appointments-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-research-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-code-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-education-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-tools-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "sec-activity-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 17,
+  "display_frac": 1.0
+ },
+ {
+  "file": "btn-website-dark.svg",
+  "viewbox_w": 105,
+  "min_font": 15,
+  "display_frac": 0.1241
+ },
+ {
+  "file": "btn-scholar-dark.svg",
+  "viewbox_w": 156,
+  "min_font": 15,
+  "display_frac": 0.1844
+ },
+ {
+  "file": "btn-orcid-dark.svg",
+  "viewbox_w": 94,
+  "min_font": 15,
+  "display_frac": 0.1111
+ },
+ {
+  "file": "btn-researchgate-dark.svg",
+  "viewbox_w": 147,
+  "min_font": 15,
+  "display_frac": 0.1738
+ },
+ {
+  "file": "btn-joss-dark.svg",
+  "viewbox_w": 156,
+  "min_font": 15,
+  "display_frac": 0.1844
+ },
+ {
+  "file": "btn-linkedin-dark.svg",
+  "viewbox_w": 107,
+  "min_font": 15,
+  "display_frac": 0.1265
+ },
+ {
+  "file": "btn-x-dark.svg",
+  "viewbox_w": 173,
+  "min_font": 15,
+  "display_frac": 0.2045
+ },
+ {
+  "file": "focus-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "repo-process-guided-deep-learning-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "repo-static-dynamic-lake-model-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "repo-hurricane-wind-radius-analysis-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "repo-water-system-consolidation-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "education-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 16,
+  "display_frac": 1.0
+ },
+ {
+  "file": "tools-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "activity-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ },
+ {
+  "file": "footer-dark.svg",
+  "viewbox_w": 816,
+  "min_font": 15,
+  "display_frac": 1.0
+ }
+]
