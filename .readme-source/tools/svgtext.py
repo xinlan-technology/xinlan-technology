@@ -1,22 +1,14 @@
-"""Text -> SVG <path> outlines, so SVG assets render identically on github.com
-(an SVG shown via <img> cannot load web fonts reliably there, and system fonts differ per OS).
+"""Text -> SVG <path> outlines, so the assets render identically on github.com
+(an SVG shown via <img> cannot load web fonts there, and system fonts differ per OS).
 
-Run scripts that import this with:  design/tools/.venv/bin/python your_script.py
+    d = text_path("Xin (Shane) Lan", font="source-serif-4-600", size=86, x=40, y=100)
+    w = measure("Postdoctoral Fellow", font="inter-500", size=16)   # advance width in px
 
-    import sys; sys.path.insert(0, "<abs path to design/tools>")
-    from svgtext import text_path, measure, FONTS
-
-    d = text_path("Xin (Shane) Lan", font="inter-700", size=48, x=40, y=100, anchor="start", tracking=-0.01)
-    svg += f'<path d="{d}" fill="#0b1f33"/>'
-    w = measure("Postdoctoral Fellow", font="inter-500", size=16)   # width in px
-
-- font: a stem from FONTS (files in tools/fonts/*.woff): e.g. inter-400..800, fraunces-400/600/700,
-  fraunces-400-italic, instrument-serif-400, instrument-serif-400-italic, dm-serif-display-400,
-  jetbrains-mono-400/500/700, space-grotesk-400/500/700, ibm-plex-sans-400/600.
-  Latin subset only (no CJK). Emoji are not available -- draw icons as shapes instead.
-- y is the text BASELINE. anchor: "start" | "middle" | "end". tracking: letter-spacing in em (e.g. 0.12 for small caps labels).
-- Shaped with HarfBuzz (real kerning + ligatures).
-- Always also put the plain text in the SVG's <title>/aria-label and the <img alt> for accessibility.
+- font: a stem from FONTS, i.e. a file in tools/fonts/*.woff. Latin subset only, no emoji --
+  draw icons as shapes instead.
+- y is the BASELINE. anchor: "start" | "middle" | "end". tracking: letter-spacing in em.
+- Shaped with HarfBuzz, so kerning and ligatures are real.
+- Callers should also put the plain text in the SVG <title> and the <img alt>.
 """
 import pathlib
 from functools import lru_cache

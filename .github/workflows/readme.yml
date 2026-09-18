@@ -1,7 +1,8 @@
 name: Update README
 
-# Refreshes the contribution heatmap and regenerates README.md + assets/ from .readme-source/build.py.
-# NOTE: README.md is generated. Edit .readme-source/build.py instead — hand edits are overwritten here.
+# Refreshes the contribution heatmap, then regenerates README.md and assets/ from
+# .readme-source/build.py. Both are generated: edit build.py, never them - hand edits
+# are overwritten here. See .readme-source/README.md.
 
 on:
   schedule:

@@ -1,38 +1,21 @@
 #!/usr/bin/env python3
 """
-Great Lakes Cartography -- profile README variant generator.
+Great Lakes Cartography -- generator for the profile README and its artwork.
 
-    design/tools/.venv/bin/python design/variants/font-source/build.py
+    python .readme-source/build.py          # needs fonttools, uharfbuzz, numpy
 
-Regenerates every SVG in assets/ (light + dark), assets/manifest.json and README.md
-(README is generated so that image widths always match the generated assets).
+Rewrites every SVG in assets/ (a light and a dark variant of each), assets/manifest.json and README.md.
+The README is generated too, so its image widths always match the assets it shows.
 
-All text is outlined with tools/svgtext.py; each glyph is defined once per SVG and placed with <use>.
-Layout is verified with explicit assertions:
-  * every text ink box sits inside its container and does not collide with other text/icons
-  * smallest text >= 11 px on desktop and >= 6 px on phones; every text colour >= 4.5:1 on paper, card,
-    chip and the GitHub dark / dark-dimmed page
-  * lake names sit inside their lake (sampled point-in-polygon + shoreline clearance)
-  * every featured-card schematic is drawn inside its own art column and reserved there, so it can never
-    collide with the card's text: the cyclone's bands stay inside its R34 circle, and the California
-    clusters stay inside the state outline, clear of the coastline and of each other
-  * the four featured cards are set to one density: every head and detail line fits the text column and
-    the head lines also use most of it (so no card's title leaves a gap beside its schematic), the cards
-    share their top/bottom padding and their head/detail rhythm, and the centred schematics span the same
-    fraction of their card (build report: card <repo>: H ... head_fill ... text_fill ... art_h ... ink)
-  * the research focus panel is six uniform rows, one per focus area: neither a heading nor a caption may wrap
-    (max_lines=1), so every row is an icon tile, one heading line and one caption line on one shared baseline,
-    the heading in a fixed left column and the caption starting at one common x across the midline divider;
-    the two added symbols (metacoupling, LLM) stay inside the same 64-unit drawing area as the other four
-    and their arrows keep clear of the nodes/bars they link
-  * marker callouts stay dry, >= 20 units inside the frame ticks, off the parallels; leaders >= 12 units from shore
-  * the hero's scale bar sits inside the map sheet (lower-right): on the sheet, dry, flush right with the
-    callout above it, and >= 20 from any shoreline, >= 12 from a callout and >= 9 from the map frame, a
-    frame tick and a leader line (build report: hero ... scale_box ... scale_gap)
-  * hero typography stays clear of the map sheet
-  * list items (' · ') and '~'-glued words never break across lines; tools groups fit on one line;
-    side-by-side contribution cards share their height and rule/task baselines; education labels clear their field;
-    link-button rows fit in 600 px
+All text is outlined with tools/svgtext.py, so the SVGs carry no font dependency; each glyph is defined
+once per file and placed with <use>.
+
+Nothing here is eyeballed. Every layout rule the design leans on is an assertion, so a copy edit that
+breaks the page fails the build instead of shipping: boxes stay inside their container and off each other
+(Canvas.check), text stays legible at the size it is displayed at and holds 4.5:1 against every background
+it can land on (Canvas.write, check_colors), lake names sit in their own lake, the hero's callouts and
+scale bar stay dry and clear of the map furniture, the four featured cards are set to one density
+(check_repo_density), and every panel's copy fits its column. main() prints the numbers behind the checks.
 """
 from __future__ import annotations
 
@@ -49,7 +32,7 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 
 HERE = pathlib.Path(__file__).resolve().parent
-TOOLS = HERE / "tools" if (HERE / "tools").is_dir() else HERE.parents[1] / "tools"
+TOOLS = HERE / "tools"
 sys.path.insert(0, str(TOOLS))
 import svgtext  # noqa: E402
 from svgtext import measure, text_path  # noqa: E402
@@ -61,8 +44,8 @@ RAW = "https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/mai
 MANIFEST: list[dict] = []
 DESKTOP_W, PHONE_W = 846, 340
 
-# Source Serif 4 is ~1.35x wider and ~0.92x shorter in the cap than Instrument Serif, so every serif
-# size, baseline and column below is retuned for it (see NOTES.md); the sans/mono scale is untouched.
+# Source Serif runs wide and short in the cap, so the serif sizes below are far smaller than the sans
+# sizes they sit beside; the two scales are not interchangeable.
 SERIF, SERIF_I = "source-serif-4-600", "source-serif-4-400-italic"
 SANS, SANS_M, SANS_SB = "inter-400", "inter-500", "inter-600"
 MONO, MONO_M = "jetbrains-mono-400", "jetbrains-mono-500"
@@ -116,7 +99,8 @@ def _glyph_bounds(font, name):
 
 
 def ink_box(text, font, size, x, y, anchor="start", tracking=0.0):
-    """Exact ink bounding box of outlined text (x0, y0, x1, y1), plus start x and advance width."""
+    """Exact ink box (x0, y0, x1, y1) of outlined text set at (x, y). Tighter than the advance width,
+    which is what the clearance and collision checks want: they measure marks, not slugs."""
     glyphs, width, scale, _ = svgtext._shape(text, font, size, tracking)
     if anchor == "middle":
         x -= width / 2
@@ -126,15 +110,16 @@ def ink_box(text, font, size, x, y, anchor="start", tracking=0.0):
     for name, gx, gy in glyphs:
         assert name != ".notdef", f"font {font} has no glyph for a character in {text!r}"
         b = _glyph_bounds(font, name)
-        if b is None:
+        if b is None:       # a blank glyph (space) carries no ink
             continue
         xs += [x + (gx + b[0]) * scale, x + (gx + b[2]) * scale]
         ys += [y - (gy + b[3]) * scale, y - (gy + b[1]) * scale]
-    return (min(xs), min(ys), max(xs), max(ys)), x, width
+    return (min(xs), min(ys), max(xs), max(ys))
 
 
 def cap_h(font, size):
-    return -ink_box("H", font, size, 0, 0)[0][1]
+    """Cap height: the ink above the baseline of a capital H, used to centre text on a given line."""
+    return -ink_box("H", font, size, 0, 0)[1]
 
 
 SEP = " · "
@@ -158,11 +143,12 @@ def _fin(line):
     return line.replace(_DOT, " ·").replace(_GLUE, " ")
 
 
-def _greedy(tokens, font, size, maxw, tracking):
+def _greedy(tokens, font, size, maxw):
+    """Fit tokens into lines of at most maxw; None if a single token is already too wide."""
     lines, cur = [], ""
     for w in tokens:
         t = f"{cur} {w}".strip()
-        if measure(_fin(t), font, size, tracking) <= maxw:
+        if measure(_fin(t), font, size) <= maxw:
             cur = t
         else:
             if not cur:
@@ -174,29 +160,31 @@ def _greedy(tokens, font, size, maxw, tracking):
     return lines
 
 
-def _wrap_tokens(toks, font, size, maxw, tracking=0.0, balance=True):
-    """Break an existing token list (see _tokens) into rendered lines, keeping glue and list items intact."""
-    lines = _greedy(toks, font, size, maxw, tracking)
+def _wrap_tokens(toks, font, size, maxw, balance=True):
+    """Break a token list (see _tokens) into rendered lines, keeping glue and list items intact.
+    Balancing re-runs the greedy fit against ever narrower measures, binary-searching the narrowest one
+    that still needs no extra line."""
+    lines = _greedy(toks, font, size, maxw)
     assert lines is not None, f"a word/item of {_fin(' '.join(toks))!r} is wider than {maxw}px"
     if balance and len(lines) > 1:
         lo, hi = 0.0, float(maxw)
         for _ in range(24):
             mid = (lo + hi) / 2
-            trial = _greedy(toks, font, size, mid, tracking)
+            trial = _greedy(toks, font, size, mid)
             if trial is not None and len(trial) <= len(lines):
                 hi = mid
             else:
                 lo = mid
-        lines = _greedy(toks, font, size, hi, tracking)
+        lines = _greedy(toks, font, size, hi)
     return [_fin(ln) for ln in lines]
 
 
-def wrap(text, font, size, maxw, tracking=0.0, max_lines=None, balance=True):
-    """Greedy line breaking; with balance=True the narrowest measure that keeps the same line count is used
-    (evenly set lines instead of a long line followed by an orphan). '\\n' forces a break."""
+def wrap(text, font, size, maxw, max_lines=None, balance=True):
+    """Greedy line breaking; with balance=True the lines are set evenly rather than as a full line followed
+    by an orphan. '\\n' forces a break. Wrapped copy is never tracked -- tracking is for single lines."""
     out = []
     for part in text.split("\n"):
-        out += _wrap_tokens(_tokens(part), font, size, maxw, tracking, balance)
+        out += _wrap_tokens(_tokens(part), font, size, maxw, balance)
     if max_lines:
         assert len(out) <= max_lines, f"{text!r} needs {len(out)} lines (> {max_lines})"
     return out
@@ -208,7 +196,7 @@ def plain(text):
 
 
 def inside(b, c, pad=0.0):
-    e = 1e-6
+    e = 1e-6      # tolerance: boxes are meant to sit flush with their container, not fail on rounding
     return b[0] >= c[0] + pad - e and b[1] >= c[1] + pad - e and b[2] <= c[2] - pad + e and b[3] <= c[3] - pad + e
 
 
@@ -220,12 +208,24 @@ def union(*bs):
     return (min(b[0] for b in bs), min(b[1] for b in bs), max(b[2] for b in bs), max(b[3] for b in bs))
 
 
+def ink_since(c, mark):
+    """Ink box of everything added to `c` since `mark = len(c.boxes)` -- one drawn block, measured."""
+    return union(*[b["box"] for b in c.boxes[mark:]])
+
+
 def fb(b):
     return "(" + ", ".join(f"{v:.1f}" for v in b) + ")"
 
 
 # ----------------------------------------------------------------------------- canvas
 class Canvas:
+    """One SVG under construction, in its own unit grid, plus the bookkeeping that proves it.
+
+    Every mark that must not be collided with is registered as a box -- text does this itself, shapes call
+    reserve -- so check() can verify the layout before write() emits the file. display_frac is the fraction
+    of the 846 px desktop column the asset is shown at: what turns unit sizes into real pixels.
+    """
+
     def __init__(self, name, w, h, title, desc, T, display_frac):
         self.name, self.w, self.h, self.title, self.desc, self.T = name, w, h, title, desc, T
         self.display_frac = display_frac
@@ -253,7 +253,7 @@ class Canvas:
         return self.gids[k]
 
     def text(self, s, font, size, x, y, fill, anchor="start", tracking=0.0, within=None,
-             key=None, opacity=None, collide=True, gap=2.0):
+             key=None, collide=True, gap=2.0):
         glyphs, width, scale, gs = svgtext._shape(s, font, size, tracking)
         gx0 = x - (width / 2 if anchor == "middle" else width if anchor == "end" else 0)
         uses = []
@@ -261,9 +261,8 @@ class Canvas:
             gid = self.glyph(font, size, name, gs, scale)
             if gid:
                 uses.append(f'<use href="#{gid}" x="{num(gx0 + gx * scale, 2)}" y="{num(y - gy * scale, 2)}"/>')
-        box, x0, w = ink_box(s, font, size, x, y, anchor, tracking)
-        op = f' opacity="{opacity}"' if opacity is not None else ""
-        self.els.append(f'<g fill="{fill}"{op}>{"".join(uses)}</g>')
+        box = ink_box(s, font, size, x, y, anchor, tracking)
+        self.els.append(f'<g fill="{fill}">{"".join(uses)}</g>')
         self.sizes.append(size)
         self.boxes.append(dict(key=key or s, box=box, within=within, collide=collide, gap=gap))
         return box
@@ -282,12 +281,14 @@ class Canvas:
             cx += w + tracking * size
         box = union(*boxes)
         self.reserve(key or "".join(p[0] for p in pieces), box, within=within, gap=gap)
-        return box, x, total
+        return box, total
 
     def reserve(self, key, box, within=None, gap=2.0):
         self.boxes.append(dict(key=key, box=box, within=within, collide=True, gap=gap))
 
     def check(self):
+        """Every box sits inside its container, and no two collidable boxes touch (the pair's smaller gap
+        wins, so one lenient box cannot loosen a strict neighbour)."""
         frame = (0, 0, self.w, self.h)
         for b in self.boxes:
             c = b["within"] or frame
@@ -310,6 +311,7 @@ class Canvas:
                f'{style}{defs}{"".join(self.els)}</svg>\n')
         ASSETS.mkdir(exist_ok=True)
         (ASSETS / fname).write_text(svg)
+        # px per unit once the asset is placed on the page: the SVG scales, so type size is a page property
         k = self.display_frac / self.w * min(self.sizes)
         assert k * DESKTOP_W >= 11, f"{fname}: smallest text {k * DESKTOP_W:.1f}px on desktop"
         assert k * PHONE_W >= 6, f"{fname}: smallest text {k * PHONE_W:.1f}px on phones"
@@ -318,27 +320,32 @@ class Canvas:
         return fname
 
 
+# ----------------------------------------------------------------------------- page geometry
 # Side-by-side cards are 49% wide with one space between them, so a pair spans ~833.5 of 846 px and its
-# outer stroked edges sit ~6.8 px inside the column. Full-width 816-unit panels inset their card by the same
-# amount (6.5 units = 6.74 px) so every card edge on the page lines up.
+# outer stroked edges sit ~6.8 px inside the column. Full-width panels inset their card by the same amount
+# (6.5 units = 6.74 px) so every card edge on the page lines up.
+CARD_W, PANEL_W = 400, 816           # 49%-wide cards and full-width panels -> 1 unit ~ 1.04 px on desktop
 PANEL_INSET = 6.0
-PANEL_L, PANEL_R = 38, 816 - 38      # content edges inside a full-width panel (31.5 units from its stroke)
-CARD_L, CARD_R = 32, 400 - 32        # content edges inside a 400-unit card (31.5 units from its stroke)
+PANEL_L, PANEL_R = 38, PANEL_W - 38  # content edges inside a full-width panel (31.5 units from its stroke)
+CARD_L, CARD_R = 32, CARD_W - 32     # content edges inside a 400-unit card (31.5 units from its stroke)
 
 
-def card_bg(c, T, rx=14, fill=None, inset=0.0):
-    c.add(f'<rect x="{num(inset + 0.5, 2)}" y="0.5" width="{num(c.w - 2 * inset - 1, 2)}" height="{num(c.h - 1)}" rx="{rx}" '
-          f'fill="{fill or T["card_fill"]}" stroke="{T["rule"]}"/>')
+def card_bg(c, T, inset=0.0):
+    c.add(f'<rect x="{num(inset + 0.5, 2)}" y="0.5" width="{num(c.w - 2 * inset - 1, 2)}" height="{num(c.h - 1)}" rx="14" '
+          f'fill="{T["card_fill"]}" stroke="{T["rule"]}"/>')
 
 
 def panel_bg(c, T):
     card_bg(c, T, inset=PANEL_INSET)
 
 
-def hline(c, x0, x1, y, color, w=1.0, dash=None, op=None):
-    da = f' stroke-dasharray="{dash}"' if dash else ""
-    o = f' opacity="{op}"' if op is not None else ""
-    c.add(f'<path d="M{num(x0)} {num(y)}H{num(x1)}" stroke="{color}" stroke-width="{num(w, 2)}"{da}{o} fill="none"/>')
+def panel_inner(H):
+    """Content box inside a full-width panel: every text box in a panel must sit within it."""
+    return (PANEL_INSET + 14, 12, PANEL_W - PANEL_INSET - 14, H - 8)
+
+
+def hline(c, x0, x1, y, color, w=1.0):
+    c.add(f'<path d="M{num(x0)} {num(y)}H{num(x1)}" stroke="{color}" stroke-width="{num(w, 2)}" fill="none"/>')
 
 
 # ----------------------------------------------------------------------------- geography
@@ -404,14 +411,13 @@ class View:
         return float(x), float(y)
 
     @classmethod
-    def fit(cls, lonlat: np.ndarray, box, align="center", proj=lcc):
+    def fit(cls, lonlat: np.ndarray, box, proj=lcc):
+        """Scale and centre a lon/lat ring inside `box`."""
         x, y = proj(lonlat[:, 0], lonlat[:, 1])
         bw, bh = box[2] - box[0], box[3] - box[1]
         s = min(bw / (x.max() - x.min()), bh / (y.max() - y.min()))
         ox = box[0] + (bw - s * (x.max() - x.min())) / 2 - s * x.min()
         oy = box[1] + (bh - s * (y.max() - y.min())) / 2 - s * y.min()
-        if align == "top":
-            oy = box[1] - s * y.min()
         return cls(s, ox, oy, proj)
 
 
@@ -557,24 +563,24 @@ def draw_lakes(c, lakes, T, idp, levels=(), coast_w=1.0, knockouts=(), line_w=0.
     c.add(f'<use href="#{idp}" fill="none" stroke="{T["coast"]}" stroke-width="{num(coast_w, 2)}" stroke-linejoin="round"/>')
 
 
-def mini_map(c, T, box, idp, highlight=None, both=True, eps=0.3):
-    """Small locator map of the lakes (no islands) with the two appointment locations."""
+def mini_map(c, T, box, idp, highlight=None, both=True):
+    """Small locator map of the lakes (no islands); `both` also rings the appointment that is not
+    highlighted. Returns the view, so the caller can place its own marks."""
     pts = np.vstack([np.asarray(p[0]) for p in LAKES.values()])
     view = View.fit(pts, box)
-    lakes = lake_rings(view, eps, hole_min=None)
-    draw_lakes(c, lakes, T, idp, coast_w=0.6)
-    for loc in (EAST_LANSING, ANN_ARBOR):
-        x, y = view.pt(loc)
-        if loc == highlight:
-            continue
-        if both:
+    draw_lakes(c, lake_rings(view, 0.3, hole_min=None), T, idp, coast_w=0.6)
+    if both:
+        for loc in (EAST_LANSING, ANN_ARBOR):
+            if loc == highlight:
+                continue
+            x, y = view.pt(loc)
             c.add(f'<circle cx="{num(x)}" cy="{num(y)}" r="1.9" fill="none" stroke="{T["amber"]}" stroke-width="1"/>')
     if highlight:
         x, y = view.pt(highlight)
         c.add(f'<circle cx="{num(x)}" cy="{num(y)}" r="5.5" fill="none" stroke="{T["amber"]}" stroke-width="0.9" opacity="0.55"/>'
               f'<circle cx="{num(x)}" cy="{num(y)}" r="2.6" fill="{T["amber"]}"/>')
     c.reserve(f"{idp} map", box, gap=4)
-    return view, lakes
+    return view
 
 
 # ----------------------------------------------------------------------------- hero
@@ -603,8 +609,8 @@ def fan_outline(view, step=0.25):
     return np.array(pts, float)
 
 
-def poly_d(pts, close=True, prec=1):
-    return "M" + " ".join(f"{num(x, prec)} {num(y, prec)}" for x, y in pts) + ("Z" if close else "")
+def poly_d(pts, close=True):
+    return "M" + " ".join(f"{num(x)} {num(y)}" for x, y in pts) + ("Z" if close else "")
 
 
 HERO_W = 1200
@@ -667,31 +673,32 @@ def build_hero(T, theme):
     for lo in range(-92, -75, 2):
         (xa, ya), (xb, yb) = view.pt((lo, la0)), view.pt((lo, la1))
         g.append(f"M{num(xa)} {num(ya)}L{num(xb)} {num(yb)}")
-    for la in range(math.ceil(la0 / 2) * 2, int(la1), 2):
-        if la0 < la < la1:
-            g.append(poly_d([view.pt((lo, la)) for lo in np.arange(lo0, lo1 + 1e-9, 0.5)], close=False))
+    # parallels curve under the conic, so each is drawn as a polyline sampled every half degree
+    parallels = [[view.pt((lo, la)) for lo in np.arange(lo0, lo1 + 1e-9, 0.5)]
+                 for la in range(math.ceil(la0 / 2) * 2, int(la1), 2) if la0 < la < la1]
+    g += [poly_d(p, close=False) for p in parallels]
     # meridians are knocked out behind the callouts (mask filled in once the callouts are placed)
     c.add(f'<path d="{"".join(g)}" fill="none" stroke="{T["grat"]}" stroke-width="{hw(0.85)}" mask="url(#gm)"/>')
-    par_pts = np.vstack([sample_poly(np.array([view.pt((lo, la)) for lo in np.arange(lo0, lo1 + 1e-9, 0.5)]), 2.0, close=False)
-                         for la in range(math.ceil(la0 / 2) * 2, int(la1), 2) if la0 < la < la1])
+    # the parallels are sampled again below: no callout may sit on one
+    par_pts = np.vstack([sample_poly(np.array(p), 2.0, close=False) for p in parallels])
+
     # neatline + degree ticks pointing outward (kept as segments too: the scale bar is measured off them)
     ticks, tick_seg = [], []
+
+    def add_tick(at, outward, major):
+        """One tick at `at`, pointing away from the sheet along the direction of `outward`."""
+        p, q = np.array(view.pt(at)), np.array(view.pt(outward))
+        u = (q - p) / np.hypot(*(q - p))
+        tl = TICK if major else 4       # every 5 degrees the tick is long enough to count off
+        ticks.append(f"M{num(p[0])} {num(p[1])}l{num(u[0] * tl)} {num(u[1] * tl)}")
+        tick_seg.append(np.array([p, p + u * tl]))
+
     for lo in range(math.ceil(lo0), math.floor(lo1) + 1):
         for la, sgn in ((la0, -1), (la1, 1)):
-            p = np.array(view.pt((lo, la)))
-            q = np.array(view.pt((lo, la + sgn * 0.2)))
-            u = (q - p) / np.hypot(*(q - p))
-            tl = TICK if lo % 5 == 0 else 4
-            ticks.append(f"M{num(p[0])} {num(p[1])}l{num(u[0] * tl)} {num(u[1] * tl)}")
-            tick_seg.append(np.array([p, p + u * tl]))
+            add_tick((lo, la), (lo, la + sgn * 0.2), lo % 5 == 0)
     for la in range(math.ceil(la0), math.floor(la1) + 1):
         for lo, sgn in ((lo0, -1), (lo1, 1)):
-            p = np.array(view.pt((lo, la)))
-            q = np.array(view.pt((lo + sgn * 0.2, la)))
-            u = (q - p) / np.hypot(*(q - p))
-            tl = TICK if la % 5 == 0 else 4
-            ticks.append(f"M{num(p[0])} {num(p[1])}l{num(u[0] * tl)} {num(u[1] * tl)}")
-            tick_seg.append(np.array([p, p + u * tl]))
+            add_tick((lo, la), (lo + sgn * 0.2, la), la % 5 == 0)
     c.add(f'<path d="{"".join(ticks)}" fill="none" stroke="{T["tick"]}" stroke-width="{hw(0.9)}"/>')
     tick_pts = np.vstack([sample_poly(s_, 1.0, close=False) for s_ in tick_seg]
                          + [np.array([s_[1] for s_ in tick_seg])])
@@ -702,23 +709,22 @@ def build_hero(T, theme):
     lakes = lake_rings(view, eps=0.45)
     lb = lakes_bbox(lakes)
     assert inside(lb, fan_box, pad=6)
-    # hydrographic names in italic serif (cartographic convention), auto-placed for maximum shore clearance
-    # (name, lon, lat, preferred angle, allowed deviation, placement): angles follow each lake's long axis;
-    # Lake Ontario is too narrow at this scale for a 22px name, so it is set on the shore just north of it
+    # Hydrographic names in italic serif (cartographic convention), auto-placed for maximum shore clearance.
+    # (name, lon, lat, preferred angle, allowed deviation, placement): angles follow each lake's long axis.
+    # Lake Ontario is too narrow at this scale to hold the name, so it is set on the shore just north of it.
     labels = [("Superior", -86.6, 47.6, 25, 10, "water"), ("Michigan", -87.05, 43.6, -84, 8, "water"),
               ("Huron", -82.3, 44.8, 65, 15, "water"), ("Erie", -81.3, 42.15, -24, 8, "water"),
               ("Ontario", -77.7, 44.3, -4, 4, "land")]
-    # Source Serif Italic sets these names ~19% wider than Instrument Serif did, so the lake names run at
-    # 21.5 (the floor that still gives >= 6 px on a 340 px phone). Superior is set along the basin's own
-    # axis (25 deg) so the wider name still clears the shore by the reference halo of 3.5 units.
+    # 21.5 is the floor that still gives >= 6 px on a 340 px phone; pad is the halo the name keeps clear
+    # of the shore, and also the stroke that knocks the contours out behind it.
     lab_size, pad = 21.5, 3.5
     knock, lab_els = [], []
     for name, lon, lat, ang, span, mode in labels:
         lake = {name: lakes[name]} if mode == "water" else lakes
-        cx, cy, ang, clr, bb = place_label(name, SERIF_I, lab_size, view.pt((lon, lat)), ang, lake, mode, ang_span=span)
+        cx, cy, ang, bb = place_label(name, SERIF_I, lab_size, view.pt((lon, lat)), ang, lake, mode, ang_span=span)
         d = text_path(name, SERIF_I, lab_size, 0, bb[4], "middle", 0, 1)
         tr = f"translate({num(cx, 2)} {num(cy, 2)}) rotate({num(ang)})"
-        world = rot_box_pts(bb[:4], ang, cx, cy, 1.0, grow=0)
+        world = rot_box_pts(bb[:4], ang, cx, cy, 1.0)
         wet = in_water(world, lakes)
         assert (wet.all() if mode == "water" else not wet.any()), f"hero: label {name} misplaced"
         md = shore_dist(world, lakes).min()
@@ -751,8 +757,8 @@ def build_hero(T, theme):
     water_bottom = sel[:, 1].max()
     base = water_bottom + 14 + capv
     shelf = base + 9
-    b_el, _, _ = c.runs(pieces_el, x_el1, base, size, anchor="end", key="CSIS callout", gap=6)
-    b_aa, _, _ = c.runs(pieces_aa, x_aa0, base, size, key="CIGLR callout", gap=6)
+    b_el, _ = c.runs(pieces_el, x_el1, base, size, anchor="end", key="CSIS callout", gap=6)
+    b_aa, _ = c.runs(pieces_aa, x_aa0, base, size, key="CIGLR callout", gap=6)
     # the Ann Arbor leader leaves its marker on a short diagonal away from Lake Erie's western shore
     jog = 6
     leaders = [[(el[0], el[1] + 8), (el[0], shelf), (b_el[0] - 2, shelf)],
@@ -781,17 +787,16 @@ def build_hero(T, theme):
     HERO_STATS.update(frame_gap=[round(v, 1) for v in frame_gap], leader_gap=[round(v, 1) for v in leader_gap])
 
     # --- scale bar: the plate carries its own scale ---------------------------------
-    # An atlas plate prints its scale inside the neatline, not in the caption strip, so the bar sits in
-    # the sheet's lower-right corner: the emptiest quarter of the map (no lake comes within ~48 units).
-    # It is set flush right with the "CIGLR · Ann Arbor" callout directly above it and centred in the
-    # band of open paper between that callout's leader shelf and the bottom neatline. Like the callouts
-    # it knocks the graticule out behind it (mask "gm"), so no meridian or parallel crosses the bar.
+    # An atlas plate prints its scale inside the neatline, so the bar goes in the sheet's lower-right
+    # corner -- the emptiest quarter of the map -- flush right with the callout above it and centred in
+    # the open paper between that callout's leader shelf and the bottom neatline. Like the callouts it
+    # knocks the graticule out behind it (mask "gm"), so no meridian or parallel crosses it.
     ppk = view.s * lcc_k(44.0) / 6371.0
     SL = 200 * ppk                                   # 200 km at the map's own projection
     assert 60 < SL < 200, SL
     sc = 21.5                                        # the hero's floor: 6.09 px on a 340 px phone
-    ib200 = ink_box("200 km", SANS_M, sc, 0, 0, "end")[0]      # ink relative to an end-anchored baseline
-    ib0 = ink_box("0", SANS_M, sc, 0, 0, "end")[0]
+    ib200 = ink_box("200 km", SANS_M, sc, 0, 0, "end")      # ink relative to an end-anchored baseline
+    ib0 = ink_box("0", SANS_M, sc, 0, 0, "end")
     xr = b_aa[2] - ib200[2]                          # "200 km" ends on the callout's own right edge
     bx1 = xr + ib200[0] - 12
     bx0 = bx1 - SL
@@ -846,13 +851,10 @@ def build_hero(T, theme):
 
     # --- name plate (left column) ------------------------------------------------
     X0 = M
-    # Source Serif sets the name ~35% wider per point, so the name runs at 86 (same measure as the old 112)
-    # and the column reaches to box[0] - 4: the map fan is height-bound and its outline only starts at
-    # x~586 beside the name, so the 28px-clear-of-the-sheet assertion below is what really guards this edge.
+    # The column runs right up to the map's box, not to the fan: the fan is height-bound and its outline
+    # only starts around x 586 beside the name, so the 28px clearance asserted below is the real guard.
     col = (M - 16, 40, box[0] - 4, STRIP - 16)
-    # X0 - 1.5 puts the "X" ink on the same optical left edge (63.4) the old face had at X0 - 3.
-    # Baselines 174/276 (leading 102 = 1.19 em): the shorter cap needs less room, so the two-line block is
-    # re-centred in the band the old one occupied instead of leaving all the slack above the amber rule.
+    # X0 - 1.5 sets the "X" on the optical left margin; baselines 174/276 are 1.19 em apart.
     n1 = c.text("Xin (Shane)", SERIF, 86, X0 - 1.5, 174, T["ink"], tracking=-0.005, within=col, gap=8)
     n2 = c.text("Lan, Ph.D.", SERIF, 86, X0 - 1.5, 276, T["ink"], tracking=-0.005, within=col, gap=8)
     c.add(f'<rect x="{X0}" y="326" width="56" height="2.2" fill="{T["amber"]}"/>')
@@ -868,22 +870,19 @@ def build_hero(T, theme):
         assert not _pip(np.array([[b[0], b[1]], [b[2], b[3]]]), fan).any()
 
     # --- bottom strip: the plate's keyword line --------------------------------------
-    # The rule already runs the full measure between the margins and carries no ticks of its own, so with
-    # the scale bar gone into the map the only thing left to balance is the line itself: 861 units of
-    # keywords in a 1072-unit measure. Left-aligned at X0 that left 211 units (20% of the measure, 149 px
-    # on desktop) of dead line under the map's right edge, so the keywords are centred instead -- the line
-    # now sits on the plate's own centre (x 600), the axis its rule already spans symmetrically, and reads
-    # as the plate's caption rather than as half of a two-item line that lost its other half.
+    # The keywords are the strip's only content, so they are centred on the plate's axis (x 600) -- the
+    # same axis the rule above them spans symmetrically -- and read as the plate's caption. Left-aligned
+    # they would leave a fifth of the measure as dead line under the map's right edge.
     hline(c, M, W - M, STRIP, T["rule"], w=sw)
-    # 21.5 is the hero's floor (6.09 px on a 340 px phone); the line keeps the baseline it had, centred in
-    # the strip on the 22-unit cap the callouts and the old scale label share.
+    # 21.5 is the hero's floor (6.09 px on a 340 px phone); the strip is centred on the 22-unit cap the
+    # callouts share, not on this size, so the line sits on one baseline with them.
     SUBTITLE = 21.5
     base = (STRIP + H) / 2 + cap_h(SANS_M, 22) / 2
     dot = ("  ·  ", SANS_M, T["amber_t"])
-    sb, _, tot = c.runs([("WATER SYSTEMS", SANS_M, T["ink"]), dot, ("ARTIFICIAL INTELLIGENCE", SANS_M, T["ink"]),
-                         dot, ("METACOUPLING", SANS_M, T["ink"])], (M + W - M) / 2, base, SUBTITLE,
-                        tracking=0.14, anchor="middle",
-                        within=(M - 8, STRIP + 8, W - M + 8, H - 8), key="subtitle", gap=24)
+    sb, tot = c.runs([("WATER SYSTEMS", SANS_M, T["ink"]), dot, ("ARTIFICIAL INTELLIGENCE", SANS_M, T["ink"]),
+                      dot, ("METACOUPLING", SANS_M, T["ink"])], (M + W - M) / 2, base, SUBTITLE,
+                     tracking=0.14, anchor="middle",
+                     within=(M - 8, STRIP + 8, W - M + 8, H - 8), key="subtitle", gap=24)
     ends = (round(sb[0] - M, 1), round(W - M - sb[2], 1))
     assert abs(ends[0] - ends[1]) <= 1, f"hero: keyword line off centre in the strip {ends}"
     HERO_STATS.update(map_right=round(float(fan_box[2]) + TICK, 1), name_left=round(n1[0], 1),
@@ -918,26 +917,37 @@ class Field:
 
 def label_box(text, font, size):
     """Ink box of `text` centred on the origin; returns (x0, y0, x1, y1, baseline_y)."""
-    b0, _, _ = ink_box(text, font, size, 0, 0, "middle")
+    b0 = ink_box(text, font, size, 0, 0, "middle")
     dy = -(b0[1] + b0[3]) / 2
     return (b0[0], b0[1] + dy, b0[2], b0[3] + dy, dy)
 
 
-def rot_box_pts(bb, ang, cx, cy, step, grow=0.0):
-    pts = sample_box((bb[0] - grow, bb[1] - grow, bb[2] + grow, bb[3] + grow), step)
+def rot_box_pts(bb, ang, cx, cy, step):
+    """Sample a box, rotate it by `ang` and drop it at (cx, cy) -- the ink a rotated label covers."""
+    pts = sample_box(bb, step)
     a = math.radians(ang)
     R = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
     return pts @ R.T + [cx, cy]
 
 
-def place_label(text, font, size, pref, pref_ang, lakes, mode="water", search=36, step=2.0, ang_span=12):
+SEARCH, SEARCH_STEP = 36, 2.0       # label search: units either side of the preferred point, and its grid step
+# Score weights per mode: clearance is worth having up to `cap`, past which drifting or turning away from the
+# preferred placement costs more than it gains. A land label is pulled back harder, so a shore name stays
+# beside its lake instead of wandering off into open land where clearance is unbounded.
+PLACE_W = dict(water=(7.0, 0.04, 0.12), land=(8.0, 0.08, 0.15))
+
+
+def place_label(text, font, size, pref, pref_ang, lakes, mode="water", ang_span=12):
+    """Slide and turn a lake name around its preferred point/angle; keep the placement with the most
+    shoreline clearance, penalised for straying from that preference. Returns (cx, cy, angle, ink box)."""
     bb = label_box(text, font, size)
     half = max(abs(bb[0]), abs(bb[2])) + 8
-    fbox = (pref[0] - search - half, pref[1] - search - half, pref[0] + search + half, pref[1] + search + half)
+    fbox = (pref[0] - SEARCH - half, pref[1] - SEARCH - half, pref[0] + SEARCH + half, pref[1] + SEARCH + half)
     field = Field(lakes, fbox)
-    sign, outside = (1.0, -1e3) if mode == "water" else (-1.0, -1e3)
+    sign = 1.0 if mode == "water" else -1.0     # measure clearance inside the water, or outside it
+    cap, w_drift, w_ang = PLACE_W[mode]
     local = sample_box(bb[:4], 2.0)
-    g = np.arange(-search, search + 1e-9, step)
+    g = np.arange(-SEARCH, SEARCH + 1e-9, SEARCH_STEP)
     C = np.array([(pref[0] + u, pref[1] + v) for u in g for v in g])
     best = None
     for ang in np.arange(pref_ang - ang_span, pref_ang + ang_span + 1e-9, 1.0):
@@ -945,17 +955,15 @@ def place_label(text, font, size, pref, pref_ang, lakes, mode="water", search=36
         R = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
         rl = local @ R.T
         world = (C[:, None, :] + rl[None]).reshape(-1, 2)
-        vals = sign * field(world, outside if mode == "water" else -outside)
+        vals = sign * field(world, -1e3 * sign)      # samples off the grid score as hopelessly wrong
         clr = vals.reshape(len(C), len(rl)).min(1) - 0.75
-        score = np.minimum(clr, 7.0) - 0.04 * np.hypot(C[:, 0] - pref[0], C[:, 1] - pref[1]) - 0.12 * abs(ang - pref_ang)
-        if mode == "land":   # stay close to the lake: don't drift into open land
-            score = (np.minimum(clr, 8.0) - 0.08 * np.hypot(C[:, 0] - pref[0], C[:, 1] - pref[1])
-                     - 0.15 * abs(ang - pref_ang))
+        score = (np.minimum(clr, cap) - w_drift * np.hypot(C[:, 0] - pref[0], C[:, 1] - pref[1])
+                 - w_ang * abs(ang - pref_ang))
         i = int(np.argmax(score))
         if best is None or score[i] > best[0]:
-            best = (score[i], C[i][0], C[i][1], float(ang), clr[i])
-    _, cx, cy, ang, clr = best
-    return float(cx), float(cy), ang, float(clr), bb
+            best = (score[i], C[i][0], C[i][1], float(ang))
+    _, cx, cy, ang = best
+    return float(cx), float(cy), ang, bb
 
 
 # ----------------------------------------------------------------------------- icons (16-unit line icons)
@@ -972,25 +980,22 @@ ICONS = {
                 '<circle cx="5" cy="5.1" r=".7" fill="{c}" stroke="none"/><path d="M7.6 11.5V7.2M7.6 9.3c0-1.4.8-2.1 1.8-2.1s1.7.7 1.7 2.1v2.2"/>',
     "x": '<path d="M2.4 2.6h3.1l8.1 10.8h-3.1Z"/><path d="M13.3 2.6 9 7.4M7 9.7 2.7 13.4"/>',
     "repo": '<path d="M3 2.5h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3Z"/><path d="M5.6 2.5v11"/>',
-    "merged": '<circle cx="4.5" cy="3.6" r="1.7"/><circle cx="4.5" cy="12.4" r="1.7"/><circle cx="11.6" cy="8" r="1.7"/>'
-              '<path d="M4.5 5.3v5.4M4.5 5.3c0 2 1.6 2.7 5.4 2.7"/>',
     "arrow": '<path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10"/>',
     "review": '<circle cx="8" cy="8" r="6.5"/><path d="M5.2 8.3l1.9 1.9 3.8-4"/>',
 }
+ICON_SW = 1.3       # stroke width at the icon's drawn size, divided out by the scale factor below
 
 
-def icon(c, kind, x, y, size, color, sw=1.3, key=None, within=None, gap=2.0):
+def icon(c, kind, x, y, size, color, within=None):
     k = size / 16
     body = ICONS[kind].replace("{c}", color)
     c.add(f'<g transform="translate({num(x, 2)} {num(y, 2)}) scale({num(k, 4)})" fill="none" stroke="{color}" '
-          f'stroke-width="{num(sw / k, 3)}" stroke-linecap="round" stroke-linejoin="round">{body}</g>')
-    c.reserve(key or f"icon {kind}", (x, y, x + size, y + size), within=within, gap=gap)
+          f'stroke-width="{num(ICON_SW / k, 3)}" stroke-linecap="round" stroke-linejoin="round">{body}</g>')
+    c.reserve(f"icon {kind}", (x, y, x + size, y + size), within=within)
 
 
 # ----------------------------------------------------------------------------- appointment cards
-CARD_W = 400        # 49%-wide cards (and 816-wide full panels) -> 1 unit ~ 1.04 px on desktop
-PANEL_W = 816
-TITLE = 26          # card titles; section titles are 42, featured repo heads 23, body text 15-17
+TITLE = 26          # appointment card titles
 HEAD = 23           # featured repo heads: their 532-unit measure caps a two-line title at 23
 
 APPOINTMENTS = [
@@ -1043,7 +1048,7 @@ def build_section(sec, T, theme):
     c = Canvas(name, W, H, title, desc, T, 1.0)
     base = 57
     x0, x1 = PANEL_INSET + 0.5, W - PANEL_INSET - 0.5       # the card edges below
-    off = ink_box(idx, MONO_M, SEC_NUM, 0, base)[0][0]
+    off = ink_box(idx, MONO_M, SEC_NUM, 0, base)[0]
     nb = c.text(idx, MONO_M, SEC_NUM, x0 - off, base, T["amber_t"], gap=8)
     tb = c.text(title, SERIF, SEC_SIZE, nb[2] + 14, base, T["ink"], gap=16)
     y_line = base - 10
@@ -1057,7 +1062,7 @@ def build_section(sec, T, theme):
         assert inside(lb, slot, pad=-0.01), f"{name}: glyph outside its slot"
         draw_lakes(c, lk, T, "g", levels=(2.4, 5.0), coast_w=0.8, line_w=0.6, prec=2)
         c.reserve("glyph", slot, gap=10)
-    rx0, rx1 = tb[2] + 18, (slot[0] - 16 if lake else x1)
+    rx0, rx1 = tb[2] + 18, (x1 - GLYPH_SLOT - 16 if lake else x1)
     assert rx1 - rx0 > 60, f"{name}: no room for the rule"
     hline(c, rx0, rx1, y_line, T["rule"])
     # scale-bar ticks at the start of the rule (a quiet cartographic cue)
@@ -1121,6 +1126,7 @@ META_FLOWS = [((24, 16.2), (32, 10.6), (40, 16.2)),         # system 1 -> system
               ((47.5, 26), (48.5, 36.5), (38.8, 42.8)),     # system 2 -> system 3
               ((25.2, 42.8), (15.5, 36.5), (16.5, 26))]     # system 3 -> system 1 (mirror of the second)
 META_NODE = 2.2
+FLOW_HEAD, FLOW_SPREAD = 4.0, math.radians(27)      # chevron arrowhead: barb length and half-angle
 
 
 def _triad(cx, cy, r=META_R):
@@ -1128,12 +1134,21 @@ def _triad(cx, cy, r=META_R):
     return [(cx + r * math.cos(a), cy + r * math.sin(a)) for a in (-math.pi / 2, math.pi / 6, 5 * math.pi / 6)]
 
 
-def _flow_d(p0, ctrl, p1, head=4.0, spread=math.radians(27)):
-    """Quadratic flow arrow p0 -> p1 with a chevron head at p1 (tangent taken from the control point)."""
+def _head_pts(ctrl, p1):
+    """Chevron at p1: the tip, then the two barbs. The tangent comes from the control point, so this
+    works for a flow arrow's curve and for the LLM symbol's straight feed arrow alike."""
     a = math.atan2(p1[1] - ctrl[1], p1[0] - ctrl[0]) + math.pi
-    P = lambda p: f"{num(p[0], 2)} {num(p[1], 2)}"      # noqa: E731
-    b = [(p1[0] + head * math.cos(a + s), p1[1] + head * math.sin(a + s)) for s in (-spread, spread)]
-    return f"M{P(p0)}Q{P(ctrl)} {P(p1)}M{P(b[0])}L{P(p1)}L{P(b[1])}"
+    return [p1] + [(p1[0] + FLOW_HEAD * math.cos(a + s), p1[1] + FLOW_HEAD * math.sin(a + s))
+                   for s in (-FLOW_SPREAD, FLOW_SPREAD)]
+
+
+def _flow_d(p0, ctrl, p1):
+    """Quadratic flow arrow p0 -> p1, chevron-headed."""
+    def P(p):
+        return f"{num(p[0], 2)} {num(p[1], 2)}"
+
+    _, b0, b1 = _head_pts(ctrl, p1)
+    return f"M{P(p0)}Q{P(ctrl)} {P(p1)}M{P(b0)}L{P(p1)}L{P(b1)}"
 
 
 # --- LLM symbol: a sequence of tokens feeding a stack of layers
@@ -1143,9 +1158,9 @@ LLM_TOKENS = (10, 19.5, 29, 38.5, 48)               # token squares; the middle 
 LLM_TOK, LLM_TOK_Y = 6, 47
 LLM_TIP, LLM_TAIL = 37.5, 44.5                      # the feed arrow, from the token row up into the stack
 
-# The six symbols are unchanged; the one-column panel only shows them smaller, so the tile, its corner radius
-# and the line weight are all rescaled together from the 56-unit tile the two-column grid used. Keeping the
-# line proportional is what keeps the geometry checks below honest: half a stroke stays 0.857 grid units.
+# Tile size, corner radius and line weight scale together off a 56-unit reference tile, so that half a
+# stroke stays 0.857 units on the symbols' own 64-unit grid whatever size the tile is drawn at -- which is
+# what makes the clearances asserted in check_focus_symbols independent of FOCUS_TILE.
 FOCUS_TILE = 40
 SYM_SW = 1.5 * FOCUS_TILE / 56
 SYM_RX = 11 * FOCUS_TILE / 56
@@ -1218,15 +1233,11 @@ def _q_bounds(p0, ctrl, p1):
     return (out[0][0], out[1][0], out[0][1], out[1][1])
 
 
-def _head_pts(ctrl, p1, head=4.0, spread=math.radians(27)):
-    a = math.atan2(p1[1] - ctrl[1], p1[0] - ctrl[0]) + math.pi
-    return [p1] + [(p1[0] + head * math.cos(a + s), p1[1] + head * math.sin(a + s)) for s in (-spread, spread)]
-
-
-def check_focus_symbols(sw=SYM_SW * 32 / FOCUS_TILE):
-    """The two added symbols (metacoupling, LLM) are drawn on the same 64-unit grid as the other four.
-    Keep them inside that grid's drawing area, and keep the flow arrows and the feed arrow off the
-    node clusters / bars they link, so nothing in a tile touches anything else."""
+def check_focus_symbols():
+    """The metacoupling and LLM symbols are drawn on the same 64-unit grid as the other four. Keep them
+    inside that grid's drawing area, and keep the flow arrows and the feed arrow off the node clusters
+    and bars they link, so nothing in a tile touches anything else."""
+    sw = SYM_SW * 32 / FOCUS_TILE    # half a stroke, in grid units: what a drawn edge adds to a box
     nodes = [p for cx, cy in META_CLUSTERS for p in _triad(cx, cy)]
     boxes = [(p[0] - META_NODE, p[1] - META_NODE, p[0] + META_NODE, p[1] + META_NODE) for p in nodes]
     clear = []
@@ -1258,14 +1269,12 @@ def check_focus_symbols(sw=SYM_SW * 32 / FOCUS_TILE):
 
 
 def build_focus(T, theme):
-    """Six uniform rows, one focus area each: an icon tile, the heading in a fixed left column and the caption
-    starting at one common x, all three on one baseline.
+    """One row per focus area: an icon tile, the heading in a fixed left column and the caption starting at
+    one common x across the midline divider, all three on one baseline.
 
-    The settled captions are the longest lines in the panel -- "Water resources and human-water interactions"
-    measures 334 units at Inter 15, the size the phone floor fixes -- and a two-column grid cannot hold that:
-    the content edge to the midline is 370 units, so even with no gutter at the divider a 36-unit tile and a
-    10-unit gap leave the text 324. One column per row gives the caption a 346-unit column of its own and the
-    heading a 288-unit one beside it, and the panel keeps its midline divider, hairline rules and icon tiles."""
+    One focus area per row, rather than two, because the captions are the longest lines in the panel: the
+    longest measures 334 units at Inter 15 (the size the phone floor fixes), and half the panel minus a tile
+    and its gap leaves only ~324."""
     W, MID, CH = PANEL_W, PANEL_W / 2, 68
     ROWS = len(FOCUS)
     FH, FS, GUT = 22, 15, 24                  # heading size, caption size, gutter either side of the divider
@@ -1347,13 +1356,12 @@ def sentence(*parts):
     return " ".join(out)
 
 
-def lang_color(T, lang):
-    return {"Python": T["teal"], "PyTorch": T["amber"], "GeoPandas": T["muted"]}[lang]
+LANG_COLOR = {"Python": "teal", "PyTorch": "amber", "GeoPandas": "muted"}
 
 
 def lang_row(c, T, langs, x, base, within):
     for lg in langs:
-        c.add(f'<circle cx="{num(x + 5)}" cy="{num(base - cap_h(SANS, 15) / 2, 2)}" r="5" fill="{lang_color(T, lg)}"/>')
+        c.add(f'<circle cx="{num(x + 5)}" cy="{num(base - cap_h(SANS, 15) / 2, 2)}" r="5" fill="{T[LANG_COLOR[lg]]}"/>')
         c.reserve(f"dot {lg}", (x, base - 11, x + 10, base), within=within)
         b = c.text(lg, SANS_M, 15, x + 16, base, T["text"], within=within)
         x = b[2] + 20
@@ -1414,11 +1422,10 @@ def lake_types_art(c, T, box):
 
 
 # --- hurricane schematic --------------------------------------------------------------------------
-# Schematic (not data): nothing here is a measurement. The bands are a plain logarithmic spiral and
-# the dashed circle only stands for "the radius the model predicts".
-# The figure is a circle, so it is sized from its art column rather than fixed: the R34 ring (plus its
-# amber tick and the widest stroke) just touches the shorter side of the column, the way the lake plate
-# and the California outline fill theirs. Everything else is a fraction of that radius.
+# Schematic (not data): the bands are a plain logarithmic spiral and the dashed circle only stands for
+# "the radius the model predicts". The figure is a circle, so it is sized from its art column rather than
+# fixed -- the R34 ring plus its tick and stroke just touches the column's shorter side, the way the lake
+# plate and the California outline fill theirs -- and everything else is a fraction of that radius.
 CY_EYE_F = 0.10              # eye radius, as a fraction of the R34 circle
 CY_RING = 0.88               # outermost spiral band, as a fraction of the R34 circle: the dashed ring
                              # sits just outside the bands instead of standing off in an empty annulus
@@ -1540,7 +1547,7 @@ def california_art(c, T, box):
     return (bb[0] - 0.5, bb[1] - 0.5, bb[2] + 0.5, bb[3] + 0.5)      # the outline plus its stroke
 
 
-HEAD_PITCH = 29       # 29, not 34: 1.26 em keeps the old head/leading proportion at the smaller size
+HEAD_PITCH = 29       # baseline step between head lines: 1.26 em at HEAD
 DET_PITCH = 24        # baseline step between detail lines
 # Every featured card reserves the same 176-unit art column; only the top/bottom inset differs, because
 # the cross-section hangs from a waterline while the other three are centred figures.
@@ -1566,7 +1573,8 @@ def build_repo_featured(r, T, theme):
     for ln, font, size in [(t, SERIF, HEAD) for t in lines] + [(t, SANS, 16) for t in det]:
         w = measure(ln, font, size)
         assert w <= textw, f"{r['repo']}: {ln!r} sets {w:.0f} units wide, past the {textw}-unit text column"
-    y_head = 88                      # 88, not 94: the cap is shorter, so the head keeps its old cap top
+    # the card grows downwards from a fixed head: only the detail lines and the final height vary
+    y_head = 88
     y_det = y_head + HEAD_PITCH * (len(lines) - 1) + 36
     last = y_det + DET_PITCH * (len(det) - 1)
     H = int(math.ceil((last + 24 + 48) / 4) * 4)
@@ -1579,26 +1587,29 @@ def build_repo_featured(r, T, theme):
     top, bot, right_inset = art_box(H)
     art_col = (ax0, top, ax1 - right_inset, bot)
     art_bb = art_fn(c, T, art_col)
+
+    # each block's ink box is measured as it is drawn, and repo_density compares the gaps between them
     mark = len(c.boxes)
     icon(c, "repo", PANEL_L, 32, 16, T["teal"], within=inner)
     c.text(r["repo"], MONO_M, 17, PANEL_L + 24, 46, T["ink"], within=inner)
-    slug_b = union(*[b["box"] for b in c.boxes[mark:]])
+    slug_b = ink_since(c, mark)
+
     mark = len(c.boxes)
     for i, ln in enumerate(lines):
         c.text(ln, SERIF, HEAD, PANEL_L - 1, y_head + HEAD_PITCH * i, T["ink"], within=inner, gap=4)
-    head_b = union(*[b["box"] for b in c.boxes[mark:]])
+    head_b = ink_since(c, mark)
+
     mark = len(c.boxes)
-    y = y_det
-    for ln in det:
-        c.text(ln, SANS, 16, PANEL_L, y, T["muted"], within=inner)
-        y += DET_PITCH
-    det_b = union(*[b["box"] for b in c.boxes[mark:]])
+    for i, ln in enumerate(det):
+        c.text(ln, SANS, 16, PANEL_L, y_det + DET_PITCH * i, T["muted"], within=inner)
+    det_b = ink_since(c, mark)
+
     rule_y = H - 48
     hline(c, PANEL_L, PANEL_R, rule_y, T["rule"])
     base = H - 22
     mark = len(c.boxes)
     lang_row(c, T, r["langs"], PANEL_L, base, inner)
-    lang_b = union(*[b["box"] for b in c.boxes[mark:]])
+    lang_b = ink_since(c, mark)
     icon(c, "arrow", PANEL_R - 16, base - cap_h(SANS_M, 15) / 2 - 8, 16, T["teal"], within=inner)
     repo_density(r, c, H, art_col, art_bb, slug_b, head_b, det_b, lang_b, rule_y, textw,
                  (len(lines), len(det)), lines)
@@ -1606,16 +1617,12 @@ def build_repo_featured(r, T, theme):
 
 
 def repo_density(r, c, H, art_col, art_bb, slug_b, head_b, det_b, lang_b, rule_y, textw, rows, head_lines):
-    """Measure how densely a featured card is set, so the four cards can be compared rather than eyeballed.
+    """Measure how densely a featured card is set, so the four can be compared rather than eyeballed.
 
-    text_h    ink height of the whole text block (slug cap top -> last detail baseline's descender)
-    gaps      slug -> head -> details -> rule -> language row, measured ink edge to ink edge
-    pad       card padding: top (card edge -> slug ink) and bottom (language ink -> card edge)
-    fill      text ink area / text column area, and art bbox area / art column area (per cent)
-    art_h     art figure height / card height (per cent): how much of the card the schematic spans
-    ink       (text ink + art bbox) / card area (per cent)
-    rows      (head lines, detail lines): the rhythm of the text block
-    head_fill per head line, its set width / the text column (per cent): how full the title lines run
+    text_h  ink height of the text block; gaps  slug -> head -> details -> rule -> languages, ink to ink;
+    pad  card edge -> slug ink, and language ink -> card edge; rows  (head lines, detail lines);
+    head_fill  each head line's width as a per cent of the text column; text_fill / art_fill / art_h / ink
+    are per cent of the text column, the art column, the card height and the whole card respectively.
     """
     def pct(v):
         return round(100 * v, 1)
@@ -1649,9 +1656,8 @@ def check_repo_density():
     for r, k in zip(REPOS, s):
         assert k["rows"][0] == 2 and k["rows"][1] >= 2, \
             f"{r['repo']}: text block is {k['rows'][0]} head + {k['rows'][1]} detail lines, not the card rhythm"
-        # A head that does not use its measure leaves an empty wedge between the title and the art column.
-        # So: the fullest head line runs at least 85% of the 532-unit column, no line falls under 55%, and
-        # the two lines average at least 80% -- the first two cards (99/80 and 98/75) are the reference.
+        # A head that does not use its measure leaves an empty wedge between the title and the art column,
+        # so the thresholds are set just under what the two best-set cards (99/80 and 98/75) achieve.
         f = k["head_fill"]
         assert max(f) >= HEAD_FULL and min(f) >= HEAD_MIN, \
             (f"{r['repo']}: head lines fill {f}% of the text column; a head needs one line >= {HEAD_FULL}% "
@@ -1680,7 +1686,8 @@ EDUCATION = [
     ("B.S.", "Marine Sciences", None, "China University of Geosciences (Beijing)"),
     ("B.B.A.", "Business Administration", None, "China University of Geosciences (Beijing)"),
 ]
-EDU_LABEL_GAP = 16     # minimum ink gap between a degree label and its field
+EDU_LABEL_GAP = 16       # minimum ink gap between a degree label and its field
+EDU_STATS: dict = {}     # degree label -> ink gap to its field (units), printed in the build report
 
 
 def edu_alt():
@@ -1692,14 +1699,14 @@ def build_education(T, theme):
     W = PANEL_W
     PITCH, EXTRA = 48, 26
     bases, y = [], 46
-    for deg, field, extra, inst in EDUCATION:
+    for _, _, extra, _ in EDUCATION:      # a row with an extra line is that much taller
         bases.append(y)
         y += (EXTRA if extra else 0) + PITCH
     H = int(bases[-1] + 28 + 2)
     c = Canvas("education", W, H, "Education", edu_alt(), T, 1.0)
     panel_bg(c, T)
-    inner = (PANEL_INSET + 14, 12, W - PANEL_INSET - 14, H - 8)
-    # FX moved +13 units: the wider degree labels need it to keep their 16-unit ink gap to the field
+    inner = panel_inner(H)
+    # station rail, degree label, field: FX clears the widest degree label by EDU_LABEL_GAP (asserted below)
     SX, DX, FX = PANEL_L + 6, PANEL_L + 26, PANEL_L + 105
     mids = []
     for (deg, field, extra, inst), base in zip(EDUCATION, bases):
@@ -1719,16 +1726,12 @@ def build_education(T, theme):
     R = 5.5
     seg = "".join(f"M{SX} {num(a + R + 3)}V{num(b - R - 3)}" for a, b in zip(mids, mids[1:]))
     c.add(f'<path d="{seg}" stroke="{T["tick"]}" stroke-width="1.2"/>')
-    for i, m in enumerate(mids):
+    for m in mids:
         # every station is a completed degree, so all markers are hollow; a filled amber marker is
         # reserved for "where he is now" (the two appointments on the hero map)
-        fill = "none"
-        c.add(f'<circle cx="{SX}" cy="{num(m)}" r="{R}" fill="{fill}" stroke="{T["amber"]}" stroke-width="1.5"/>')
+        c.add(f'<circle cx="{SX}" cy="{num(m)}" r="{R}" fill="none" stroke="{T["amber"]}" stroke-width="1.5"/>')
         c.reserve("station", (SX - 6, m - 6, SX + 6, m + 6), within=inner, gap=8)
     return c.write(theme)
-
-
-EDU_STATS: dict = {}     # degree label -> ink gap to its field (units)
 
 
 # ----------------------------------------------------------------------------- tools panel
@@ -1773,7 +1776,7 @@ def build_tools(T, theme):
     H = int(H)
     c = Canvas("tools", W, H, "Methods and tools", tools_alt(), T, 1.0)
     panel_bg(c, T)
-    inner = (PANEL_INSET + 14, 12, W - PANEL_INSET - 14, H - 8)
+    inner = panel_inner(H)
     base = top_base
     for label, rows in groups:
         c.text(label.upper(), SANS_SB, 15, PANEL_L, base, T["teal"], tracking=0.1, within=inner)
@@ -1795,10 +1798,9 @@ def build_tools(T, theme):
 
 
 # ----------------------------------------------------------------------------- code activity (contribution heatmap)
-# Snapshot of the GitHub contribution calendar, stored in activity.json. Refresh it with
-#   design/tools/.venv/bin/python refresh_activity.py
-# which reads https://github.com/users/<login>/contributions - the same calendar the profile page draws
-# (the GraphQL viewer query returns a different, lower total). The picture is static until rebuilt.
+# Snapshot of the GitHub contribution calendar, stored in activity.json; refresh it with
+# refresh_activity.py, which scrapes https://github.com/users/<login>/contributions -- the same calendar
+# the profile page draws (the GraphQL viewer query returns a different, lower total). Static until rebuilt.
 ACTIVITY = json.loads((HERE / "activity.json").read_text())
 HEAT_STEPS = (2, 4, 8)          # 0 | 1-2 | 3-4 | 5-8 | 9+
 
@@ -1815,10 +1817,9 @@ def fmt_day(iso):
 
 
 def activity_stats():
-    days = [(i, v) for i, w in enumerate(ACTIVITY["weeks"]) for v in w]
-    flat = [v for _, v in days]
-    active = sum(1 for v in flat if v > 0)
-    return ACTIVITY["total"], active, max(flat)
+    """(total contributions, days with any activity, busiest day)."""
+    flat = [v for week in ACTIVITY["weeks"] for v in week]
+    return ACTIVITY["total"], sum(1 for v in flat if v > 0), max(flat)
 
 
 def activity_alt():
@@ -1840,7 +1841,7 @@ def build_activity(T, theme):
     H = int(gy0 + 7 * pitch - GAP + 44)
     c = Canvas("activity", W, H, "Code activity", activity_alt(), T, 1.0)
     panel_bg(c, T)
-    inner = (PANEL_INSET + 14, 12, W - PANEL_INSET - 14, H - 8)
+    inner = panel_inner(H)
     c.runs([(f"{total}", MONO_M, T["ink"]), (" contributions", SANS_M, T["text"])],
            PANEL_L, 42, 17, within=inner, key="total")
     # legend, right-aligned on the same baseline
@@ -1889,7 +1890,7 @@ def build_footer(T, theme):
     c = Canvas("footer", W, H, "East Lansing, MI (42.73 N, 84.48 W) and Ann Arbor, MI (42.28 N, 83.74 W)",
                "Closing plate with a small Great Lakes locator map and the coordinates of both appointments.", T, 1.0)
     cx = W / 2
-    view, _ = mini_map(c, T, (cx - 52, 6, cx + 52, 74), "fm", highlight=None, both=False)
+    view = mini_map(c, T, (cx - 52, 6, cx + 52, 74), "fm", highlight=None, both=False)
     for loc in (EAST_LANSING, ANN_ARBOR):
         x, y = view.pt(loc)
         c.add(f'<circle cx="{num(x)}" cy="{num(y)}" r="2.6" fill="{T["amber"]}"/>')
@@ -1908,9 +1909,12 @@ def build_footer(T, theme):
 
 # ----------------------------------------------------------------------------- colour checks
 def _lum(h):
-    r, g, b = (int(h.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4))
-    f = lambda v: v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4  # noqa: E731
-    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+    """Relative luminance of a #rrggbb colour, per WCAG 2.1."""
+    def lin(v):
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (lin(int(h.lstrip("#")[i:i + 2], 16) / 255) for i in (0, 2, 4))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
 def contrast(a, b):
@@ -1962,7 +1966,10 @@ def repo_alt(r):
 
 def readme():
     sec = {s[0]: s for s in SECTIONS}
-    S = lambda n: pic(n, sec[n][2], "100%")  # noqa: E731
+
+    def S(name):                    # a full-width section heading strip
+        return pic(name, sec[name][2], "100%")
+
     # cards that belong together share one <p>; <br> separates rows, so the vertical gutter (~6 px of line
     # descent) matches the horizontal one (one space, ~4.4 px) instead of a 16 px paragraph margin
     rows = ["\n".join(pic(n, LINK_ALT[n], BTN_W[n], BTN_H, href=url) for n, _, _, url in row) for row in BTN_ROWS]
@@ -2020,11 +2027,12 @@ SPACE_PX = 4.4
 
 def page_report():
     """Rendered size of the page on desktop, from the generated assets (px)."""
-    k = {m["file"]: m for m in MANIFEST}
-    def h(name, frac=1.0):
+    def h(name):
+        """Displayed height of a full-width asset."""
         svg = (ASSETS / f"{name}-light.svg").read_text()
         vb = [float(v) for v in svg.split('viewBox="', 1)[1].split('"', 1)[0].split()]
-        return vb[3] * frac * DESKTOP_W / vb[2]
+        return vb[3] * DESKTOP_W / vb[2]
+
     pair = 2 * 0.49 * DESKTOP_W + SPACE_PX
     off = (DESKTOP_W - pair) / 2
     card_edge = off + 0.5 * 0.49 * DESKTOP_W / CARD_W

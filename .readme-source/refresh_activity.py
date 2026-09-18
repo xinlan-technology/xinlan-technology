@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Refresh activity.json from the public contribution calendar, then re-run build.py.
+"""Refresh activity.json, the heatmap snapshot build.py draws.
 
-    design/tools/.venv/bin/python refresh_activity.py [login]
+    python .readme-source/refresh_activity.py [login]
 
-Reads https://github.com/users/<login>/contributions - the same calendar GitHub draws on the profile
-page - so the heatmap matches it. (The GraphQL `viewer` query returns a different, lower total.)
+Scrapes https://github.com/users/<login>/contributions - the same calendar GitHub draws on
+the profile page, so the heatmap matches it. (The GraphQL `viewer` query totals differently.)
+Re-run build.py afterwards.
 """
 import datetime, json, pathlib, re, sys, urllib.request
 
