@@ -10,6 +10,7 @@
 - Shaped with HarfBuzz, so kerning and ligatures are real.
 - Callers should also put the plain text in the SVG <title> and the <img alt>.
 """
+import io
 import pathlib
 from functools import lru_cache
 
@@ -22,6 +23,14 @@ FONT_DIR = pathlib.Path(__file__).resolve().parent / "fonts"
 FONTS = sorted(p.stem for p in FONT_DIR.glob("*.woff"))
 
 
+def num(v: float, prec: int = 1) -> str:
+    """Format an SVG number without dropping integer zeros or keeping negative zero."""
+    s = f"{v:.{prec}f}"
+    if prec:
+        s = s.rstrip("0").rstrip(".")
+    return "0" if s == "-0" else s
+
+
 @lru_cache(maxsize=None)
 def _load(font):
     path = FONT_DIR / f"{font}.woff"
@@ -29,12 +38,10 @@ def _load(font):
         raise ValueError(f"unknown font {font!r}; available: {FONTS}")
     tt = TTFont(str(path))
     # HarfBuzz needs raw sfnt bytes, so re-serialize the decompressed font
-    import io
     buf = io.BytesIO()
     tt.flavor = None
     tt.save(buf)
     data = buf.getvalue()
-    tt = TTFont(io.BytesIO(data))
     face = hb.Face(data)
     hbfont = hb.Font(face)
     upem = face.upem
@@ -70,7 +77,7 @@ def text_path(text, font="inter-400", size=16, x=0.0, y=0.0, anchor="start", tra
         x -= width / 2
     elif anchor == "end":
         x -= width
-    pen = SVGPathPen(gs, ntos=lambda v: (f"{v:.{precision}f}").rstrip("0").rstrip("."))
+    pen = SVGPathPen(gs, ntos=lambda v: num(v, precision))
     for name, gx, gy in glyphs:
         # font units are y-up; SVG is y-down
         tp = TransformPen(pen, (scale, 0, 0, -scale, x + gx * scale, y - gy * scale))

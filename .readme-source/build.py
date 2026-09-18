@@ -15,7 +15,9 @@ breaks the page fails the build instead of shipping: boxes stay inside their con
 (Canvas.check), text stays legible at the size it is displayed at and holds 4.5:1 against every background
 it can land on (Canvas.write, check_colors), lake names sit in their own lake, the hero's callouts and
 scale bar stay dry and clear of the map furniture, the four featured cards are set to one density
-(check_repo_density), and every panel's copy fits its column. main() prints the numbers behind the checks.
+(check_repo_density), and every panel's copy fits its column. Every check finishes before a single file is
+replaced, so a failed build leaves the page as it was; run without -O, which would strip the assertions.
+main() prints the numbers behind the checks.
 """
 from __future__ import annotations
 
@@ -34,13 +36,14 @@ HERE = pathlib.Path(__file__).resolve().parent
 TOOLS = HERE / "tools"
 sys.path.insert(0, str(TOOLS))
 import svgtext  # noqa: E402
-from svgtext import measure, text_path  # noqa: E402
+from svgtext import measure, num, text_path  # noqa: E402
 
 # when this script lives in <repo>/.readme-source, it writes the README and assets to the repo root
 OUT = HERE.parent if HERE.name == ".readme-source" else HERE
 ASSETS = OUT / "assets"
 RAW = "https://raw.githubusercontent.com/xinlan-technology/xinlan-technology/main/assets/"
 MANIFEST: list[dict] = []
+SVG_OUTPUTS: dict[str, str] = {}
 DESKTOP_W, PHONE_W = 846, 340
 
 # Source Serif runs wide and short in the cap, so the serif sizes below are far smaller than the sans
@@ -58,8 +61,7 @@ THEMES = {
         ink="#0e2a3b", text="#2f4757", muted="#566b79", teal="#1d6873",
         shore="#d0e6eb", deep="#1c6674", deep_op=0.085, contour="#2f7f8a", contour_op=0.55,
         coast="#3f8792", lakelabel="#18495a", amber="#b8731c", amber_t="#8f560b",
-        halo="#f6f9f9", chip="#ffffff", chip_fill="#ffffff", tile="#f6f9f9", warm="#e7c79a", cold="#9cc7cf",
-        heat=("#e9f0f1", "#c3e0e5", "#8ac9d1", "#409aa4", "#1d6873"), heat_edge="#d5dfe2",
+        chip="#ffffff", chip_fill="#ffffff", tile="#f6f9f9", warm="#e7c79a", cold="#9cc7cf",
         pages=("#ffffff",),
     ),
     "dark": dict(
@@ -67,8 +69,7 @@ THEMES = {
         ink="#e8eff1", text="#b9c7cf", muted="#8b9daa", teal="#6cc3c7",
         shore="#112f39", deep="#58b9c2", deep_op=0.075, contour="#86d3d7", contour_op=0.35,
         coast="#5fb3bb", lakelabel="#c3e8ea", amber="#e6a64e", amber_t="#ebb567",
-        halo="#0f1720", chip="#0d1117", chip_fill="none", tile="none", warm="#8a6a3c", cold="#2d6570",
-        heat=("#152029", "#1b4952", "#2a828c", "#46aeb6", "#7fd9de"), heat_edge="#26343f",
+        chip="#0d1117", chip_fill="none", tile="none", warm="#8a6a3c", cold="#2d6570",
         pages=("#0d1117", "#212830"),   # GitHub dark, GitHub dark dimmed
     ),
 }
@@ -76,11 +77,6 @@ THEMES = {
 
 def esc(s: str) -> str:
     return html.escape(s, quote=True)
-
-
-def num(v: float, prec: int = 1) -> str:
-    s = f"{v:.{prec}f}".rstrip("0").rstrip(".")
-    return "0" if s in ("-0", "") else s
 
 
 # ----------------------------------------------------------------------------- text metrics
@@ -146,12 +142,12 @@ def _greedy(tokens, font, size, maxw):
     """Fit tokens into lines of at most maxw; None if a single token is already too wide."""
     lines, cur = [], ""
     for w in tokens:
+        if measure(_fin(w), font, size) > maxw:
+            return None
         t = f"{cur} {w}".strip()
         if measure(_fin(t), font, size) <= maxw:
             cur = t
         else:
-            if not cur:
-                return None
             lines.append(cur)
             cur = w
     if cur:
@@ -225,8 +221,8 @@ class Canvas:
     of the 846 px desktop column the asset is shown at: what turns unit sizes into real pixels.
     """
 
-    def __init__(self, name, w, h, title, desc, T, display_frac):
-        self.name, self.w, self.h, self.title, self.desc, self.T = name, w, h, title, desc, T
+    def __init__(self, name, w, h, title, desc, display_frac):
+        self.name, self.w, self.h, self.title, self.desc = name, w, h, title, desc
         self.display_frac = display_frac
         self.defs: list[str] = []
         self.els: list[str] = []
@@ -242,7 +238,7 @@ class Canvas:
         """Each outlined glyph (font, size) is defined once in <defs> and placed with <use>."""
         k = (font, round(size, 3), name)
         if k not in self.gids:
-            pen = SVGPathPen(gs, ntos=lambda v: f"{v:.2f}".rstrip("0").rstrip("."))
+            pen = SVGPathPen(gs, ntos=lambda v: num(v, 2))
             gs[name].draw(TransformPen(pen, (scale, 0, 0, -scale, 0, 0)))
             d = pen.getCommands()
             gid = f"q{len(self.gids)}" if d else None
@@ -286,8 +282,7 @@ class Canvas:
         self.boxes.append(dict(key=key, box=box, within=within, collide=True, gap=gap))
 
     def check(self):
-        """Every box sits inside its container, and no two collidable boxes touch (the pair's smaller gap
-        wins, so one lenient box cannot loosen a strict neighbour)."""
+        """Check containment and collisions using the smaller requested gap for each pair."""
         frame = (0, 0, self.w, self.h)
         for b in self.boxes:
             c = b["within"] or frame
@@ -300,6 +295,7 @@ class Canvas:
                     f"{self.name}: {cs[i]['key']!r} {fb(cs[i]['box'])} collides with {cs[j]['key']!r} {fb(cs[j]['box'])}"
 
     def write(self, theme):
+        """Validate and buffer this asset; main writes files after all checks pass."""
         self.check()
         fname = f"{self.name}-{theme}.svg"
         style = f"<style>{self.style}</style>" if self.style else ""
@@ -308,12 +304,11 @@ class Canvas:
                f'width="{num(self.w)}" height="{num(self.h)}" role="img" aria-labelledby="t d">'
                f'<title id="t">{esc(self.title)}</title><desc id="d">{esc(self.desc)}</desc>'
                f'{style}{defs}{"".join(self.els)}</svg>\n')
-        ASSETS.mkdir(exist_ok=True)
-        (ASSETS / fname).write_text(svg)
         # px per unit once the asset is placed on the page: the SVG scales, so type size is a page property
         k = self.display_frac / self.w * min(self.sizes)
         assert k * DESKTOP_W >= 11, f"{fname}: smallest text {k * DESKTOP_W:.1f}px on desktop"
         assert k * PHONE_W >= 6, f"{fname}: smallest text {k * PHONE_W:.1f}px on phones"
+        SVG_OUTPUTS[fname] = svg
         MANIFEST.append(dict(file=fname, viewbox_w=self.w, min_font=min(self.sizes),
                              display_frac=round(self.display_frac, 4)))
         return fname
@@ -348,7 +343,7 @@ def hline(c, x0, x1, y, color, w=1.0):
 
 
 # ----------------------------------------------------------------------------- geography
-GEO = json.loads((TOOLS / "data" / "great_lakes.geojson").read_text())
+GEO = json.loads((TOOLS / "data" / "great_lakes.geojson").read_text(encoding="utf-8"))
 _RAW = {f["properties"]["name"]: f["geometry"]["coordinates"] for f in GEO["features"]}
 # In this dataset "Georgian Bay" is already part of the "Lake Huron" polygon (it shares ~95% of its
 # vertices), so the duplicate feature is dropped; otherwise its seam would show up as a false shoreline.
@@ -358,7 +353,7 @@ LAKES = {k.replace("Lake ", ""): v for k, v in _RAW.items() if k != "Georgian Ba
 
 # California state outline (Natural Earth 50m, lon/lat): one 252-point ring, used by the
 # water_system_consolidation card.
-_CA = json.loads((TOOLS / "data" / "california.geojson").read_text())
+_CA = json.loads((TOOLS / "data" / "california.geojson").read_text(encoding="utf-8"))
 CALIFORNIA = np.asarray(_CA["geometry"]["coordinates"][0], float)
 assert _CA["properties"]["name"] == "California" and len(_CA["geometry"]["coordinates"]) == 1
 
@@ -435,6 +430,9 @@ def dp(pts, eps):
         seg = pts[b] - pts[a]
         L = math.hypot(*seg)
         rel = pts[a + 1:b] - pts[a]
+        # Distance to the infinite line, not the clamped segment: textbook RDP clamps, but on this
+        # geodata neither form ever reaches its tolerance, and switching re-renders every published
+        # map outline (max boundary shift 0.46 px) for no visible gain.
         d = np.hypot(rel[:, 0], rel[:, 1]) if L < 1e-9 else np.abs(seg[0] * rel[:, 1] - seg[1] * rel[:, 0]) / L
         i = int(np.argmax(d))
         if d[i] > eps:
@@ -644,7 +642,7 @@ def build_hero(T, theme):
                "Xin (Shane) Lan, Ph.D. - water systems, artificial intelligence, metacoupling",
                "Name plate beside a Lambert conformal conic map of the Great Lakes with bathymetry-style "
                "contours, marking CSIS at Michigan State University (East Lansing) and CIGLR at the "
-               "University of Michigan (Ann Arbor).", T, 1.0)
+               "University of Michigan (Ann Arbor).", 1.0)
     c.style = RIPPLE_CSS
     sw = hw(1.04)                                   # the cards' 1-unit stroke renders at 1.04 px
     c.add(f'<rect x="{PL}" y="{num(sw / 2, 2)}" width="{num(W - 2 * PL, 2)}" height="{num(H - sw, 2)}" rx="21" '
@@ -668,10 +666,11 @@ def build_hero(T, theme):
     c.add(f'<path d="{poly_d(fan)}" fill="{T["paper"]}" stroke="none"/>')
     # graticule every 2 degrees
     lo0, lo1, la0, la1 = FAN
-    g = []
+    g, meridians = [], []
     for lo in range(-92, -75, 2):
         (xa, ya), (xb, yb) = view.pt((lo, la0)), view.pt((lo, la1))
         g.append(f"M{num(xa)} {num(ya)}L{num(xb)} {num(yb)}")
+        meridians.append([(xa, ya), (xb, yb)])
     # parallels curve under the conic, so each is drawn as a polyline sampled every half degree
     parallels = [[view.pt((lo, la)) for lo in np.arange(lo0, lo1 + 1e-9, 0.5)]
                  for la in range(math.ceil(la0 / 2) * 2, int(la1), 2) if la0 < la < la1]
@@ -717,7 +716,7 @@ def build_hero(T, theme):
     # 21.5 is the floor that still gives >= 6 px on a 340 px phone; pad is the halo the name keeps clear
     # of the shore, and also the stroke that knocks the contours out behind it.
     lab_size, pad = 21.5, 3.5
-    knock, lab_els = [], []
+    knock, lab_els, lab_boxes = [], [], {}
     for name, lon, lat, ang, span, mode in labels:
         lake = {name: lakes[name]} if mode == "water" else lakes
         cx, cy, ang, bb = place_label(name, SERIF_I, lab_size, view.pt((lon, lat)), ang, lake, mode, ang_span=span)
@@ -730,7 +729,8 @@ def build_hero(T, theme):
         assert md >= pad, f"hero: label {name} only {md:.1f}px from a shoreline"
         if mode == "land":
             assert _pip(world, fan).all(), f"hero: label {name} leaves the map sheet"
-        c.reserve(f"lake label {name}", (world[:, 0].min(), world[:, 1].min(), world[:, 0].max(), world[:, 1].max()), gap=4)
+        lab_boxes[name] = (world[:, 0].min(), world[:, 1].min(), world[:, 0].max(), world[:, 1].max())
+        c.reserve(f"lake label {name}", lab_boxes[name], gap=4)
         if mode == "water":
             knock.append(f'<path d="{d}" transform="{tr}" fill="#000" stroke="#000" stroke-width="{2 * pad}" stroke-linejoin="round"/>')
         lab_els.append(f'<path d="{d}" transform="{tr}" fill="{T["lakelabel"]}"/>')
@@ -786,41 +786,78 @@ def build_hero(T, theme):
     HERO_STATS.update(frame_gap=[round(v, 1) for v in frame_gap], leader_gap=[round(v, 1) for v in leader_gap])
 
     # --- scale bar: the plate carries its own scale ---------------------------------
-    # An atlas plate prints its scale inside the neatline, so the bar goes in the sheet's lower-right
-    # corner -- the emptiest quarter of the map -- flush right with the callout above it and centred in
-    # the open paper between that callout's leader shelf and the bottom neatline. Like the callouts it
-    # knocks the graticule out behind it (mask "gm"), so no meridian or parallel crosses it.
+    # An atlas plate prints its scale inside the neatline, so the bar goes in the sheet's upper-right
+    # corner -- the open paper north-east of Lake Huron and east of Superior, the emptiest quarter of
+    # the map -- set the same distance inside the top neatline and inside the east one. Neither of those
+    # runs straight: the conic's top parallel dips towards the central meridian and the east meridian
+    # leans outward going south, so both insets are measured against the block's own extent instead of
+    # being read off the corner point. Each depends on the other (the ceiling moves with the block's
+    # left edge, the wall with its baseline) and both curves are monotone here, so a couple of passes
+    # settle it; the two assertions below re-measure the result and are what actually holds the corner.
+    # Like the callouts the block knocks the graticule out behind it (mask "gm").
     ppk = view.s * lcc_k(44.0) / 6371.0
     SL = 200 * ppk                                   # 200 km at the map's own projection
     assert 60 < SL < 200, SL
     sc = 21.5                                        # the hero's floor: 6.09 px on a 340 px phone
     ib200 = ink_box("200 km", SANS_M, sc, 0, 0, "end")      # ink relative to an end-anchored baseline
     ib0 = ink_box("0", SANS_M, sc, 0, 0, "end")
-    xr = b_aa[2] - ib200[2]                          # "200 km" ends on the callout's own right edge
-    bx1 = xr + ib200[0] - 12
-    bx0 = bx1 - SL
-    sc_l, sc_r = bx0 - 10 + ib0[0], b_aa[2]
     sc_t, sc_b = min(ib0[1], ib200[1]), max(ib0[3], ib200[3])
-    # the bottom neatline curves, so the floor is its highest point under the block's own measure
-    below = ring[(ring[:, 0] >= sc_l) & (ring[:, 0] <= sc_r) & (ring[:, 1] > shelf)]
-    floor = float(below[:, 1].min())
-    base = shelf + (floor - shelf - (sc_b - sc_t)) / 2 - sc_t
+    sc_w = (ib200[2] - ib200[0]) + 12 + SL + 10 - ib0[0]    # "0" ink .. gap .. bar .. gap .. "200 km" ink
+    INSET = 24.0                                     # paper between the block and either neatline
+    sc_r, base = float(fan_box[2]), 0.0
+    for _ in range(6):
+        above = ring[(ring[:, 0] >= sc_r - sc_w) & (ring[:, 0] <= sc_r) & (ring[:, 1] < lb[1])]
+        base = float(above[:, 1].max()) + INSET - sc_t          # under the arc's lowest point over the block
+        east = ring[(ring[:, 1] >= base + sc_t) & (ring[:, 1] <= base + sc_b) & (ring[:, 0] > sc_r - sc_w)]
+        sc_r = float(east[:, 0].min()) - INSET                  # inside the meridian's nearest point beside it
+    sc_l = sc_r - sc_w
     sc_box = (sc_l, base + sc_t, sc_r, base + sc_b)
+    # re-measured against the settled block: the ceiling is the top neatline across the block's own
+    # measure (everything north of every lake), the wall the east neatline across its own height
+    ceiling = float(ring[(ring[:, 0] >= sc_l) & (ring[:, 0] <= sc_r) & (ring[:, 1] < lb[1])][:, 1].max())
+    wall = float(ring[(ring[:, 1] >= sc_box[1]) & (ring[:, 1] <= sc_box[3]) & (ring[:, 0] > sc_l)][:, 0].min())
+    assert abs(sc_box[1] - ceiling - INSET) < 1e-6, \
+        f"hero: scale bar {sc_box[1] - ceiling:.2f} units under the top neatline, not {INSET}"
+    assert abs(wall - sc_box[2] - INSET) < 1e-6, \
+        f"hero: scale bar {wall - sc_box[2]:.2f} units inside the east neatline, not {INSET}"
     pts = sample_box(sc_box, 1.5)
     assert _pip(pts, fan).all(), f"hero: scale bar {fb(sc_box)} leaves the map sheet"
     assert not in_water(pts, lakes).any(), "hero: scale bar touches water"
     sg = dict(shore=float(shore_dist(pts, lakes).min()), frame=ring_gap(sc_box, ring),
               tick=ring_gap(sc_box, tick_pts), leader=ring_gap(sc_box, lead_pts),
               callout=min(box_gap(sc_box, b) for b in (b_el, b_aa)),
+              label=min(box_gap(sc_box, b) for b in lab_boxes.values()),
               marker=min(box_gap(sc_box, (p[0] - 9.6, p[1] - 9.6, p[0] + 9.6, p[1] + 9.6)) for p in (el, aa)))
-    assert sg["shore"] >= 20, f"hero: scale bar only {sg['shore']:.1f} units from a shoreline"
-    assert sg["frame"] >= 9, f"hero: scale bar only {sg['frame']:.1f} units inside the map frame"
-    assert sg["tick"] >= 9, f"hero: scale bar only {sg['tick']:.1f} units from a frame tick"
-    assert sg["leader"] >= 9, f"hero: scale bar only {sg['leader']:.1f} units from a leader line"
-    assert sg["callout"] >= 12, f"hero: scale bar only {sg['callout']:.1f} units from a callout"
-    assert sg["marker"] >= 20, f"hero: scale bar only {sg['marker']:.1f} units from a marker"
+    # the block keeps a full inset of paper from every other mark on the sheet, and twice that from the
+    # water: in this corner it is the shoreline creeping up (Superior, Georgian Bay) that would spoil it
+    assert sg["shore"] >= 2 * INSET, f"hero: scale bar only {sg['shore']:.1f} units from a shoreline"
+    # the neatline is sampled once per unit, so the nearest sample can read a shade under the solved inset
+    assert sg["frame"] >= INSET - 1, f"hero: scale bar only {sg['frame']:.1f} units inside the map frame"
+    assert sg["tick"] >= INSET - 1, f"hero: scale bar only {sg['tick']:.1f} units from a frame tick"
+    assert sg["leader"] >= INSET, f"hero: scale bar only {sg['leader']:.1f} units from a leader line"
+    assert sg["callout"] >= INSET, f"hero: scale bar only {sg['callout']:.1f} units from a callout"
+    assert sg["label"] >= INSET, f"hero: scale bar only {sg['label']:.1f} units from a lake name"
+    assert sg["marker"] >= INSET, f"hero: scale bar only {sg['marker']:.1f} units from a marker"
     knock_boxes.append(sc_box)
+    # the mask cuts a 6-unit halo around the block, so a graticule line that reaches into the halo has to
+    # cross the block as well -- otherwise the knock-out would bite a stub out of a line it never touches
+    halo = 6 + hw(0.85) / 2
+    hb = (sc_box[0] - halo, sc_box[1] - halo, sc_box[2] + halo, sc_box[3] + halo)
+
+    def runs_through(line, b):
+        return bool(((line[:, 0] > b[0]) & (line[:, 0] < b[2])
+                     & (line[:, 1] > b[1]) & (line[:, 1] < b[3])).any())
+
+    grat_cut = 0
+    for line in [sample_poly(np.array(p, float), 1.0, close=False) for p in meridians + parallels]:
+        cut = runs_through(line, sc_box)
+        assert cut or not runs_through(line, hb), \
+            "hero: the scale bar's knock-out clips a graticule line it does not cross"
+        grat_cut += cut
+    bx1 = sc_r + ib200[0] - ib200[2] - 12            # the bar stops 12 units short of the "200 km" ink
+    bx0 = bx1 - SL
     by = base - cap_h(SANS_M, sc) / 2 - 3
+    assert sc_box[1] <= by and by + 6 <= sc_box[3], "hero: the bar is taller than the block measured for it"
     segs = []
     for i in range(4):
         xa = bx0 + i * SL / 4
@@ -829,11 +866,15 @@ def build_hero(T, theme):
     c.add("".join(segs) + f'<rect x="{num(bx0, 2)}" y="{num(by, 2)}" width="{num(SL, 2)}" height="6" fill="none" '
           f'stroke="{T["ink"]}" stroke-width="{hw(0.9)}"/>')
     c.reserve("scale bar", (bx0, by, bx1, by + 6), gap=10)
-    lab200 = c.text("200 km", SANS_M, sc, xr, base, T["muted"], anchor="end", gap=10)
-    c.text("0", SANS_M, sc, bx0 - 10, base, T["muted"], anchor="end", gap=10)
-    assert abs(lab200[2] - b_aa[2]) < 0.01, f"hero: scale label is not flush with the callout {fb(lab200)}"
+    lab200 = c.text("200 km", SANS_M, sc, sc_r - ib200[2], base, T["muted"], anchor="end", gap=10)
+    lab0 = c.text("0", SANS_M, sc, bx0 - 10, base, T["muted"], anchor="end", gap=10)
+    # the labels are what sc_box was solved for, so they must land on its edges
+    assert abs(lab200[2] - sc_r) < 0.01, f"hero: the scale label overruns the block's right edge {fb(lab200)}"
+    assert abs(lab0[0] - sc_l) < 0.01, f"hero: the zero overruns the block's left edge {fb(lab0)}"
     HERO_STATS.update(km200=round(float(SL), 1), scale_box=[round(float(v), 1) for v in sc_box],
-                      scale_gap={k: round(float(v), 1) for k, v in sg.items()})
+                      scale_gap={k: round(float(v), 1) for k, v in sg.items()}, scale_grat_cut=grat_cut,
+                      scale_names={n: round(box_gap(sc_box, lab_boxes[n]), 1)
+                                   for n in ("Superior", "Huron", "Ontario")})
 
     c.defs.append(f'<mask id="gm" maskUnits="userSpaceOnUse" x="0" y="0" width="{W}" height="{H}">'
                   f'<rect width="{W}" height="{H}" fill="#fff"/>'
@@ -1012,7 +1053,7 @@ APPOINTMENTS = [
 def build_appointment(a, T, theme):
     W, H = CARD_W, 236
     c = Canvas(a["name"], W, H, a["line"],
-               f"Current appointment card with a locator map marking {a['place']} ({a['coord'].replace('°', '').replace(SEP, ', ')}).", T, 0.49)
+               f"Current appointment card with a locator map marking {a['place']} ({a['coord'].replace('°', '').replace(SEP, ', ')}).", 0.49)
     card_bg(c, T)
     inner = (24, 18, W - 24, H - 12)
     mini_map(c, T, (CARD_R - 92, 26, CARD_R, 88), "mm", highlight=a["loc"])
@@ -1041,26 +1082,24 @@ GLYPH_SLOT = 48
 def build_section(sec, T, theme):
     name, idx, title, lake = sec
     W, H = PANEL_W, 70
-    desc = (f"Section {idx} heading with a small contour glyph of Lake {lake}." if lake
-            else f"Section {idx} heading.")
-    c = Canvas(name, W, H, title, desc, T, 1.0)
+    desc = f"Section {idx} heading with a small contour glyph of Lake {lake}."
+    c = Canvas(name, W, H, title, desc, 1.0)
     base = 57
     x0, x1 = PANEL_INSET + 0.5, W - PANEL_INSET - 0.5       # the card edges below
     off = ink_box(idx, MONO_M, SEC_NUM, 0, base)[0]
     nb = c.text(idx, MONO_M, SEC_NUM, x0 - off, base, T["amber_t"], gap=8)
     tb = c.text(title, SERIF, SEC_SIZE, nb[2] + 14, base, T["ink"], gap=16)
     y_line = base - 10
-    if lake:
-        # every glyph is centred in the same 48-unit slot, flush with the card edge
-        slot = (x1 - GLYPH_SLOT, y_line - 20, x1, y_line + 20)
-        pts = np.asarray(LAKES[lake][0], float)
-        view = View.fit(pts, slot)
-        lk = lake_rings(view, 0.2, hole_min=None, names=[lake])
-        lb = lakes_bbox(lk)
-        assert inside(lb, slot, pad=-0.01), f"{name}: glyph outside its slot"
-        draw_lakes(c, lk, T, "g", levels=(2.4, 5.0), coast_w=0.8, line_w=0.6, prec=2)
-        c.reserve("glyph", slot, gap=10)
-    rx0, rx1 = tb[2] + 18, (x1 - GLYPH_SLOT - 16 if lake else x1)
+    # Every glyph is centred in the same 48-unit slot, flush with the card edge.
+    slot = (x1 - GLYPH_SLOT, y_line - 20, x1, y_line + 20)
+    pts = np.asarray(LAKES[lake][0], float)
+    view = View.fit(pts, slot)
+    lk = lake_rings(view, 0.2, hole_min=None, names=[lake])
+    lb = lakes_bbox(lk)
+    assert inside(lb, slot, pad=-0.01), f"{name}: glyph outside its slot"
+    draw_lakes(c, lk, T, "g", levels=(2.4, 5.0), coast_w=0.8, line_w=0.6, prec=2)
+    c.reserve("glyph", slot, gap=10)
+    rx0, rx1 = tb[2] + 18, x1 - GLYPH_SLOT - 16
     assert rx1 - rx0 > 60, f"{name}: no room for the rule"
     hline(c, rx0, rx1, y_line, T["rule"])
     # scale-bar ticks at the start of the rule (a quiet cartographic cue)
@@ -1094,7 +1133,7 @@ def build_button(b, T, theme):
     PL, GAP, PR = 11, 7, 13
     W = math.ceil(PL + BTN_ICON + GAP + tw + PR)
     BTN_W[name] = W
-    c = Canvas(name, W, BTN_H, label, f"Link button: {label}", T, W / DESKTOP_W)
+    c = Canvas(name, W, BTN_H, label, f"Link button: {label}", W / DESKTOP_W)
     c.add(f'<rect x="0.5" y="0.5" width="{W - 1}" height="{BTN_H - 1}" rx="{(BTN_H - 1) / 2}" fill="{T["card_fill"]}" stroke="{T["rule"]}"/>')
     within = (6, 3, W - 6, BTN_H - 3)
     icon(c, ic, PL, (BTN_H - BTN_ICON) / 2, BTN_ICON, T["teal"], within=within)
@@ -1204,10 +1243,12 @@ def focus_symbol(c, kind, x, y, T, S=FOCUS_TILE):
                           for i, t in enumerate(LLM_TOKENS))
                 + f'<path d="M32 {num(LLM_TAIL)}V{num(LLM_TIP)}M30 {num(LLM_TIP + 3.3)}L32 {num(LLM_TIP)}'
                   f'L34 {num(LLM_TIP + 3.3)}" stroke="{tl}"/>')
-    else:  # thermal profile: temperature (x) vs depth (y)
+    elif kind == "thermal":  # temperature (x) vs depth (y)
         body = (f'<path d="M13 11v43M13 11h40" stroke="{tk}"/>'
                 f'<path d="M13 29h40" stroke="{am}" stroke-dasharray="2 3"/>'
                 f'<path d="M47 14c0 6 0 10-2 13-3 4-18 3-21 8-2 3-3 9-3 16" stroke="{tl}" stroke-width="1.8"/>')
+    else:
+        raise ValueError(f"unknown focus symbol: {kind!r}")
     c.add(g + body + "</g>")
     c.reserve(f"symbol {kind}", (x, y, x + S, y + S), gap=12)
 
@@ -1296,7 +1337,7 @@ def build_focus(T, theme):
     c = Canvas("focus", W, H, "Research focus",
                f"Map-legend style panel of {n} research focus areas, one per row: an icon tile, the heading in "
                "a left column and one caption line beside it, across a hairline divider -- "
-               + "; ".join(focus_pairs()) + ".", T, 1.0)
+               + "; ".join(focus_pairs()) + ".", 1.0)
     panel_bg(c, T)
     for r in range(1, ROWS):
         hline(c, PANEL_L, PANEL_R, r * CH, T["rule"])
@@ -1578,7 +1619,7 @@ def build_repo_featured(r, T, theme):
     H = int(math.ceil((last + 24 + 48) / 4) * 4)
     langs = ", ".join(r["langs"])
     c = Canvas(repo_slug(r), W, H, f"{r['repo']}: {plain(r['head'])}",
-               sentence("Featured repository card", *r["detail"], f"Built with: {langs}"), T, 1.0)
+               sentence("Featured repository card", *r["detail"], f"Built with: {langs}"), 1.0)
     panel_bg(c, T)
     inner = (PANEL_INSET + 18, 18, W - PANEL_INSET - 18, H - 12)
     art_fn, art_box = REPO_ART[r["art"]]
@@ -1701,7 +1742,7 @@ def build_education(T, theme):
         bases.append(y)
         y += (EXTRA if extra else 0) + PITCH
     H = int(bases[-1] + 28 + 2)
-    c = Canvas("education", W, H, "Education", edu_alt(), T, 1.0)
+    c = Canvas("education", W, H, "Education", edu_alt(), 1.0)
     panel_bg(c, T)
     inner = panel_inner(H)
     # station rail, degree label, field: FX clears the widest degree label by EDU_LABEL_GAP (asserted below)
@@ -1772,7 +1813,7 @@ def build_tools(T, theme):
         H += label_gap + len(rows) * (CH + GAPY) - GAPY
         H += group_gap if i < len(groups) - 1 else 26
     H = int(H)
-    c = Canvas("tools", W, H, "Methods and tools", tools_alt(), T, 1.0)
+    c = Canvas("tools", W, H, "Methods and tools", tools_alt(), 1.0)
     panel_bg(c, T)
     inner = panel_inner(H)
     base = top_base
@@ -1799,7 +1840,7 @@ def build_tools(T, theme):
 def build_footer(T, theme):
     W, H = PANEL_W, 80
     c = Canvas("footer", W, H, "East Lansing, MI (42.73 N, 84.48 W) and Ann Arbor, MI (42.28 N, 83.74 W)",
-               "Closing plate with a small Great Lakes locator map and the coordinates of both appointments.", T, 1.0)
+               "Closing plate with a small Great Lakes locator map and the coordinates of both appointments.", 1.0)
     cx = W / 2
     view = mini_map(c, T, (cx - 52, 6, cx + 52, 74), "fm", highlight=None, both=False)
     for loc in (EAST_LANSING, ANN_ARBOR):
@@ -1936,7 +1977,7 @@ def page_report():
     """Rendered size of the page on desktop, from the generated assets (px)."""
     def h(name):
         """Displayed height of a full-width asset."""
-        svg = (ASSETS / f"{name}-light.svg").read_text()
+        svg = SVG_OUTPUTS[f"{name}-light.svg"]
         vb = [float(v) for v in svg.split('viewBox="', 1)[1].split('"', 1)[0].split()]
         return vb[3] * DESKTOP_W / vb[2]
 
@@ -1952,10 +1993,11 @@ def page_report():
 
 # ----------------------------------------------------------------------------- main
 def main():
-    ASSETS.mkdir(exist_ok=True)
-    for f in ASSETS.glob("*.svg"):
-        f.unlink()
-    MANIFEST.clear()
+    if not __debug__:
+        raise RuntimeError("Run without -O or PYTHONOPTIMIZE; layout assertions must remain enabled.")
+    for state in (MANIFEST, SVG_OUTPUTS, BTN_W, HERO_STATS, FOCUS_STATS, SYM_STATS,
+                  REPO_STATS, EDU_STATS, CA_STATS, CY_STATS):
+        state.clear()
     check_focus_symbols()
     colors = check_colors()
     for theme, T in THEMES.items():
@@ -1975,9 +2017,27 @@ def main():
     row_w = [sum(BTN_W[n] for n, *_ in row) + SPACE_PX * (len(row) - 1) for row in BTN_ROWS]
     assert max(row_w) <= BTN_ROW_MAX, f"a link-button row needs {max(row_w):.0f}px (> {BTN_ROW_MAX})"
     check_repo_density()
-    (ASSETS / "manifest.json").write_text(json.dumps(MANIFEST, indent=1) + "\n")
-    (OUT / "README.md").write_text(readme())
-    sizes = sorted(((f.stat().st_size, f.name) for f in ASSETS.glob("*.svg")), reverse=True)
+    markdown = readme()
+    page = page_report()
+    manifest_path = ASSETS / "manifest.json"
+    try:
+        listed = {entry["file"] for entry in json.loads(manifest_path.read_text(encoding="utf-8"))}
+    except (OSError, ValueError, TypeError, KeyError):
+        # No readable manifest: fall back to what is on disk, so a renamed asset still gets cleaned up.
+        listed = {path.name for path in ASSETS.glob("*.svg")}
+        print(f"note: {manifest_path.name} missing or unreadable; cleaning stale assets from disk instead")
+    obsolete = listed - SVG_OUTPUTS.keys()
+    manifest = json.dumps(MANIFEST, indent=1) + "\n"
+    ASSETS.mkdir(exist_ok=True)
+    for name, svg in SVG_OUTPUTS.items():
+        (ASSETS / name).write_text(svg, encoding="utf-8")
+    (OUT / "README.md").write_text(markdown, encoding="utf-8")
+    # Remove outputs this run did not produce; unrelated files survive when a manifest is available.
+    for path in ASSETS.glob("*.svg"):
+        if path.name in obsolete:
+            path.unlink()
+    manifest_path.write_text(manifest, encoding="utf-8")
+    sizes = sorted(((len(svg.encode("utf-8")), name) for name, svg in SVG_OUTPUTS.items()), reverse=True)
     light_kb = sum(sz for sz, n in sizes if n.endswith("-light.svg")) / 1e3
     print(f"wrote {len(sizes)} SVGs (largest {sizes[0][1]} {sizes[0][0] / 1e3:.0f} KB; light set {light_kb:.0f} KB), manifest, README.md")
     print(f"link rows {[round(w) for w in row_w]}px; california art {CA_STATS}; cyclone art {CY_STATS}")
@@ -1989,7 +2049,7 @@ def main():
     print(f"education label->field gaps {EDU_STATS}")
     print(f"hero {HERO_STATS}; focus {FOCUS_STATS}")
     print(f"focus symbols {SYM_STATS}")
-    print(f"page {page_report()}")
+    print(f"page {page}")
     for line in colors:
         print("contrast", line)
 

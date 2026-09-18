@@ -13,9 +13,19 @@ pip install fonttools uharfbuzz numpy
 python .readme-source/build.py   # writes README.md + assets/
 ```
 
-Run it from the repository root. `build.py` detects that it lives in `.readme-source/`
-and writes to the repo root; it prints a layout report and fails on any assertion, so a
-clean exit means the page is laid out within its own constraints.
+The script resolves paths from its own location, so it can run from any working directory.
+It prints a layout report and validates both themes before replacing generated files.
+Only obsolete SVGs listed in the previous manifest are removed; unrelated files are preserved.
+Do not use `python -O` or `PYTHONOPTIMIZE`: the generator requires its layout assertions.
+
+## Verify
+
+```sh
+python -m unittest discover -s .readme-source -v
+```
+
+Tests cover line wrapping, SVG number formatting, map simplification, light/dark asset
+references, repeatable builds, and preservation of existing files when validation fails.
 
 ## Things a future editor needs to know
 
